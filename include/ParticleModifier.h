@@ -128,7 +128,7 @@ namespace rad{
       }
       
       void ModifyMomentum(const string oldpart, const string newpart){
-	std::vector<std::string> vars = {oldpart, newpart, MC()+"px", MC()+"py", MC()+"pz", MC()+"m", MC()+"pid"};
+	std::vector<std::string> vars = {oldpart, newpart, MC()+"px", MC()+"py", MC()+"pz", MC()+"m"};
 	
 	auto func_call_str = rad::utils::createFunctionCallStringFromVec("rad::config::ModifyMomentumParts", vars);
 	
