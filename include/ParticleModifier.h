@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ConfigReaction.h"
+#include "Constants.h"
 #include <string>
 #include <vector>
 #include <iostream>
@@ -118,8 +119,16 @@ namespace rad{
   
       }
       
+      void OverwriteRecParticle(const string oldpart, const string newpart){
+	std::vector<std::string> vars = {oldpart, newpart, Rec()+"px", Rec()+"py", Rec()+"pz", Rec()+"m", Rec()+"pid"};
+	auto func_call_str = rad::utils::createFunctionCallStringFromVec("rad::config::OverwriteIfNoRecon", vars);
+	
+	_modifications.push_back(func_call_str);
+	
+      }
+      
       void ModifyMomentum(const string oldpart, const string newpart){
-	std::vector<std::string> vars = {oldpart, newpart, MC()+"px", MC()+"py", MC()+"pz", MC()+"m"};
+	std::vector<std::string> vars = {oldpart, newpart, MC()+"px", MC()+"py", MC()+"pz", MC()+"m", MC()+"pid"};
 	
 	auto func_call_str = rad::utils::createFunctionCallStringFromVec("rad::config::ModifyMomentumParts", vars);
 	
@@ -189,14 +198,35 @@ namespace rad{
       return true;//always return true 
     }
     
+    
+    template <typename Tp, typename Tm, typename Tpdg>
+      bool OverwriteIfNoRecon(const int oldpart, const int newpart, RVec<Tp> &px, RVec<Tp> &py, RVec<Tp> &pz, RVec<Tm> &m, RVec<Tpdg> &pid){
+      
+      /* std::cout << "Old: " << oldpart << " " << "New: " << newpart << " " << std::endl; */
+      /* std::cout << "Old PDG: " << pid[oldpart] << "New PDG: " << pid[newpart] << " " << std::endl; */
+      /* std:: cout << endl; */
+      std::cout << "Old px: " << px[oldpart] << "New px: " << px[newpart] << " " << std::endl;
+      
+      //doesnt work while pid vector bugged / offset from momentum vectors
+      /* if(pid[oldpart] == rad::constant::InvalidEntry<int>() || pid[oldpart] == -1){ */
+      //use zero momentum as proxy for good pid in particle creator for now.
+      if( px[oldpart] == 0 || std::isnan(px[oldpart]) ){
+	px[oldpart] = px[newpart];
+	py[oldpart] = py[newpart];
+	pz[oldpart] = pz[newpart];
+	m[oldpart] = m[newpart];
+	pid[oldpart] = pid[newpart];
+      }
+      return true;
+    }
+    
     template <typename Tp, typename Tm>
-    bool ModifyMomentumParts(const int oldpart, const int newpart, RVec<Tp> &px, RVec<Tp> &py, RVec<Tp> &pz, RVec<Tm> &m){
+      bool ModifyMomentumParts(const int oldpart, const int newpart, RVec<Tp> &px, RVec<Tp> &py, RVec<Tp> &pz, RVec<Tm> &m){
       
       px[oldpart] = px[newpart];
       py[oldpart] = py[newpart];
       pz[oldpart] = pz[newpart];
       m[oldpart] = m[newpart];
-      
       return true;
     }
     
