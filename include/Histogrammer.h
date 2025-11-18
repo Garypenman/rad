@@ -215,16 +215,22 @@ namespace rad{
       }
       
       //Draw 2D Histograms (default option colz)
-      void Draw2D(const std::string& name, const std::string& type, const TString opt="colz", const TVirtualPad* pad = nullptr){
+      //need a clever way of auto drawing either
+      //MC or Tru + Rec depending on what type of macro used
+      //for now happy just auto drawing MC() OR Tru()
+      void Draw2DMC(const std::string& name, const TString opt="colz", const TVirtualPad* pad = nullptr){
+	using namespace rad::names::data_type;
 	if(!pad)
 	  new TCanvas();	
-	if(GetResult(type,name,0).get()==nullptr){
-	  return;
-	}else{
-	  auto h=GetResult(type,name,0);
-	  h->DrawCopy(opt);
+	for(const auto type:_types){
+	  if (type==Rec()) continue;
+	  if(GetResult(type,name,0).get()==nullptr){
+	    continue;
+	  }else{
+	    auto h=GetResult(type,name,0);
+	    h->DrawCopy(opt);
+	  }
 	}
-	
       }
       
       
