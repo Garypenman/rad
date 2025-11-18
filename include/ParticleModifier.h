@@ -205,7 +205,7 @@ namespace rad{
       /* std::cout << "Old: " << oldpart << " " << "New: " << newpart << " " << std::endl; */
       /* std::cout << "Old PDG: " << pid[oldpart] << "New PDG: " << pid[newpart] << " " << std::endl; */
       /* std:: cout << endl; */
-      std::cout << "Old px: " << px[oldpart] << "New px: " << px[newpart] << " " << std::endl;
+      /* std::cout << "Old px: " << px[oldpart] << "New px: " << px[newpart] << " " << std::endl; */
       
       //doesnt work while pid vector bugged / offset from momentum vectors
       /* if(pid[oldpart] == rad::constant::InvalidEntry<int>() || pid[oldpart] == -1){ */
