@@ -13,6 +13,7 @@
 #include "BasicKinematics.h"
 #include "Beams.h"
 #include "CommonDefines.h"
+//#include "KinematicsProcessor.h"
 
 namespace rad{
 
@@ -200,12 +201,8 @@ namespace rad{
      * virtual photon 4-vector
      */
     template<typename Tp, typename Tm>
-    PxPyPzMVector PhotoFourVector(const RVecIndexMap& react, const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
-      
-      // auto phot =  beams::InitialFourVector(react[names::ElectroEleIdx()][0],px,py,pz,m);
-      // SubtractFourVector(phot,react[names::ScatEleIdx()],px,py,pz,m);
-      // return phot;
-      return FourVector(react[names::VirtGammaIdx()],px,py,pz,m);
+    PxPyPzMVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m){
+      return FourVector(react[names::OrderCreated()][names::OrderVirtGamma()],px,py,pz,m);
       
     }
  

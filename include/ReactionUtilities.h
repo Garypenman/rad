@@ -9,8 +9,6 @@ namespace rad{
   namespace reaction{
     namespace util{
       
-       enum class ColType{Undef,Int,UInt,Float,Double,Short,Bool,Long};
-
     
       // void CountParticles(rad::config::ConfigReaction* rad, const std::string& type){
       template<typename T> //use template so can #include this in ConfigReaction
@@ -75,64 +73,64 @@ namespace rad{
 	rdf->Define(string("res_")+var,Form("(%s-%s)/%s",(Truth()+var).data(),(Rec()+var).data(),(Truth()+var).data() ));
       }
       
-     template<typename T> //use template so can #include this in ConfigReaction
-     ColType DeduceColumnVectorType(T* const radf,const string& name){
+     // template<typename T> //use template so can #include this in ConfigReaction
+     // ColType DeduceColumnVectorType(T* const radf,const string& name){
 
-       TString col_type = radf->CurrFrame().GetColumnType(name);
+     //   TString col_type = radf->CurrFrame().GetColumnType(name);
        
-	if(col_type.Contains("UInt_t")||col_type.Contains("uint")) return ColType::UInt;
- 	if(col_type.Contains("Float_t")||col_type.Contains("float")) return ColType::Float;
- 	if(col_type.Contains("Double_t")||col_type.Contains("double")) return ColType::Double;
- 	if(col_type.Contains("Short_t")||col_type.Contains("short")) return ColType::Short;
- 	if(col_type.Contains("Bool_t")||col_type.Contains("bool")) return ColType::Bool;
- 	if(col_type.Contains("Long_t")||col_type.Contains("long")) return ColType::Long;
-	if(col_type.Contains("Int_t")||col_type.Contains("int")) return ColType::Int;
-	return ColType::Undef;
-      }
+     // 	if(col_type.Contains("UInt_t")||col_type.Contains("uint")) return ColType::UInt;
+     // 	if(col_type.Contains("Float_t")||col_type.Contains("float")) return ColType::Float;
+     // 	if(col_type.Contains("Double_t")||col_type.Contains("double")) return ColType::Double;
+     // 	if(col_type.Contains("Short_t")||col_type.Contains("short")) return ColType::Short;
+     // 	if(col_type.Contains("Bool_t")||col_type.Contains("bool")) return ColType::Bool;
+     // 	if(col_type.Contains("Long_t")||col_type.Contains("long")) return ColType::Long;
+     // 	if(col_type.Contains("Int_t")||col_type.Contains("int")) return ColType::Int;
+     // 	return ColType::Undef;
+     //  }
       // std::string CreateDeducedFunctionString(config::ConfigReaction& cr,const std::string func,){
       // auto obj_types =cr.TypeColObjTypeString("mc_","components_p4");
       // auto function_expr = "rad::FourVectorMassCalc<" + obj_types + ">";
 
       // }
       //This should perhaps be more general and moved to REactionUtils or somewehre
-      template<typename T> //use template so can #include this in ConfigReaction
-      void RedefineFundamentalAliases(T* const radf){
+      // template<typename T> //use template so can #include this in ConfigReaction
+      // void RedefineFundamentalAliases(T* const radf){
 
-	auto alias_map = radf->AliasMap();
-	for(const auto& col :alias_map ){
-	  const auto& alias = col.first;
-	  switch(static_cast<int>(DeduceColumnVectorType(radf, col.second )) ) {
+      // 	auto alias_map = radf->AliasMap();
+      // 	for(const auto& col :alias_map ){
+      // 	  const auto& alias = col.first;
+      // 	  switch(static_cast<int>(DeduceColumnVectorType(radf, col.second )) ) {
 	    
-	  case static_cast<int>(ColType::Undef):
-	    break;
-	  case static_cast<int>(ColType::UInt):
-	    radf->template RedefineFundamental<UInt_t>(alias);
-	    break;
-	  case static_cast<int>(ColType::Int):
-	    radf->template RedefineFundamental<Int_t>(alias);
-	    break;
-	  case static_cast<int>(ColType::Float):
-	    radf->template RedefineFundamental<Float_t>(alias);
-	    break;
-	  case static_cast<int>(ColType::Double):
-	    radf->template RedefineFundamental<Double_t>(alias);
-	    break;
-	  case static_cast<int>(ColType::Short):
-	    radf->template RedefineFundamental<Short_t>(alias);
-	    break;
-	  case static_cast<int>(ColType::Bool):
-	    radf->template RedefineFundamental<Bool_t>(alias);
-	    break;
-	  case static_cast<int>(ColType::Long):
-	    radf->template RedefineFundamental<Long_t>(alias);
-	    break;
+      // 	  case static_cast<int>(ColType::Undef):
+      // 	    break;
+      // 	  case static_cast<int>(ColType::UInt):
+      // 	    radf->template RedefineFundamental<UInt_t>(alias);
+      // 	    break;
+      // 	  case static_cast<int>(ColType::Int):
+      // 	    radf->template RedefineFundamental<Int_t>(alias);
+      // 	    break;
+      // 	  case static_cast<int>(ColType::Float):
+      // 	    radf->template RedefineFundamental<Float_t>(alias);
+      // 	    break;
+      // 	  case static_cast<int>(ColType::Double):
+      // 	    radf->template RedefineFundamental<Double_t>(alias);
+      // 	    break;
+      // 	  case static_cast<int>(ColType::Short):
+      // 	    radf->template RedefineFundamental<Short_t>(alias);
+      // 	    break;
+      // 	  case static_cast<int>(ColType::Bool):
+      // 	    radf->template RedefineFundamental<Bool_t>(alias);
+      // 	    break;
+      // 	  case static_cast<int>(ColType::Long):
+      // 	    radf->template RedefineFundamental<Long_t>(alias);
+      // 	    break;
 	    
-	  default:
-	    break;
-	  }
-	}
+      // 	  default:
+      // 	    break;
+      // 	  }
+      // 	}
 	
-      }
+      // }
       
     }
   }//reaction

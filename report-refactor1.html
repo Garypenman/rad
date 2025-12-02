@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAD Framework: Analysis Pipeline Overview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
+        h1, h2, h3 { color: #0f172a; }
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+        .card { background: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); padding: 2rem; margin-bottom: 2rem; border: 1px solid #e2e8f0; }
+        .diagram-container { display: flex; justify-content: center; background-color: #ffffff; padding: 1rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; margin: 1.5rem 0; }
+        .highlight-box { background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 1rem; border-radius: 0.25rem; }
+        .badge { display: inline-block; padding: 0.25em 0.4em; font-size: 75%; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: 0.25rem; }
+        .badge-base { background-color: #64748b; color: white; }
+        .badge-derived { background-color: #2563eb; color: white; }
+    </style>
+</head>
+<body class="pb-12">
+
+    <header class="bg-slate-900 text-white py-10 mb-8 shadow-xl">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-4xl font-bold mb-2">RAD Framework</h1>
+                    <h2 class="text-xl font-light text-slate-300">Combinatorial Reaction Analysis Pipeline</h2>
+                </div>
+                <div class="mt-4 md:mt-0 bg-blue-600 px-4 py-2 rounded-full text-sm font-semibold">
+                    Project: Z Boson Search (e + p &rarr; e' + n + Z)
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 max-w-6xl">
+
+        <section class="card border-t-4 border-blue-600">
+            <h2 class="text-3xl font-bold mb-4">1. The Scientific Objective</h2>
+            <p class="text-lg mb-6">
+                The primary purpose of this code is to bridge the gap between <strong>Generic Experimental Data</strong> and <strong>Specific Physical Reactions</strong>. 
+                Detectors record "soups" of particles; this framework filters, reconstructs, and analyzes specific decay chains buried within that data.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">The Target Reaction</h3>
+                    <p class="mb-4">
+                        We are analyzing the electro-production of a $Z$ state (decaying to $J/\psi \, \pi^+$) off a neutron. 
+                    </p>
+                    <div class="bg-slate-100 p-4 rounded-md code-font text-sm mb-4">
+                        Reaction Chain:<br>
+                        1. e + p &rarr; e' + n' + Z<br>
+                        2. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &#8627; J/&psi; + &pi;<sup>+</sup><br>
+                        3. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &#8627; e<sup>+</sup> + e<sup>-</sup>
+                    </div>
+                    <div class="highlight-box">
+                        <strong>The Challenge:</strong> The final state contains <strong>three electrons</strong> (1 scattered, 1 from decay, 1 positron). 
+                        The detector sees them as indistinguishable tracks. We must calculate every possible combination to find the correct physical grouping.
+                    </div>
+                </div>
+
+                <div class="diagram-container">
+                     <pre class="mermaid">
+graph TD
+    subgraph Detector ["Raw Detector Output"]
+        Track1[Track A: Electron?]
+        Track2[Track B: Electron?]
+        Track3[Track C: Electron?]
+        Track4[Track D: Pion]
+    end
+
+    subgraph Analysis ["RAD Framework Logic"]
+        Combo1[Combo 1: A=Scattered, B+C=Decay]
+        Combo2[Combo 2: B=Scattered, A+C=Decay]
+    end
+
+    Detector --> Analysis
+    Analysis -->|Filter| PhysicsResult[Identify J/psi Mass peak]
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 class="text-2xl font-bold mb-4">2. Mapping Physics to Code</h2>
+            <p class="mb-4">
+                The framework uses a <strong>Topology Agnostic Architect</strong> (<code>ParticleCreator</code>) that configures itself based on the specific physics channel (e.g., Electro-production vs Photoproduction).
+            </p>
+
+            <div class="overflow-x-auto mb-6">
+                <table class="min-w-full text-sm text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600 uppercase">
+                            <th class="px-4 py-3 border-b">Step</th>
+                            <th class="px-4 py-3 border-b">Physics Object</th>
+                            <th class="px-4 py-3 border-b">Code Operation</th>
+                            <th class="px-4 py-3 border-b">Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="px-4 py-3 border-b font-bold">Topology</td>
+                            <td class="px-4 py-3 border-b">&gamma;* (Virtual Photon)</td>
+                            <td class="px-4 py-3 border-b code-font">KinematicProcElectro()</td>
+                            <td class="px-4 py-3 border-b">Auto-defines Beam - Scattered Electron</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 border-b font-bold">Intermed. 1</td>
+                            <td class="px-4 py-3 border-b"><strong>J/&psi;</strong></td>
+                            <td class="px-4 py-3 border-b code-font">Creator().Sum("Jpsi", {{"ele","pos"}})</td>
+                            <td class="px-4 py-3 border-b">New 4-Vectors calculated ($p_{e^-} + p_{e^+}$)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 border-b font-bold">Intermed. 2</td>
+                            <td class="px-4 py-3 border-b"><strong>Z</strong></td>
+                            <td class="px-4 py-3 border-b code-font">Creator().Sum("Z", {{"Jpsi","pip"}})</td>
+                            <td class="px-4 py-3 border-b">New 4-Vectors calculated ($p_{J/\psi} + p_{\pi^+}$)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 class="text-2xl font-bold mb-6">3. Technical Architecture</h2>
+            <p class="mb-6">
+                We have decoupled the <strong>Computational Engine</strong> from the <strong>Physics Topology</strong> using an inheritance model. This allows the same high-performance core to handle different experiments (Electro vs Photo).
+            </p>
+
+            <div class="diagram-container">
+                <pre class="mermaid">
+classDiagram
+    class KinematicsProcessor {
+        &lt;&lt;Base Engine&gt;&gt;
+        +Init()
+        +operator() [The Event Loop]
+        +Mass()
+        +Pt()
+    }
+
+    class KinematicProcElectro {
+        &lt;&lt;Physics Logic&gt;&gt;
+        +Constructor() [Defines Topology]
+        +Q2()
+        +CosThetaCM()
+    }
+
+    class ParticleCreator {
+        &lt;&lt;The Architect&gt;&gt;
+        +InitMap() [Look up groups]
+        +ApplyCreation()
+    }
+
+    KinematicsProcessor <|-- KinematicProcElectro
+    KinematicsProcessor *-- ParticleCreator
+    KinematicProcElectro ..> ParticleCreator : Configures Groups
+                </pre>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-slate-50 p-4 rounded border border-slate-200">
+                    <h4 class="font-bold text-slate-700 mb-2"><span class="badge badge-base">Base</span> KinematicsProcessor</h4>
+                    <ul class="list-disc list-inside text-sm text-gray-600 space-y-2">
+                        <li><strong>Pure Engine:</strong> Doesn't know what an "Electron" is.</li>
+                        <li><strong>Execution:</strong> Runs the thread-safe loop, creates momentum cache.</li>
+                        <li><strong>Generic Math:</strong> Provides <code>Mass</code>, <code>Pt</code> shortcuts.</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 p-4 rounded border border-slate-200">
+                    <h4 class="font-bold text-blue-700 mb-2"><span class="badge badge-derived">Derived</span> KinematicProcElectro</h4>
+                    <ul class="list-disc list-inside text-sm text-gray-600 space-y-2">
+                        <li><strong>Topology Manager:</strong> Registers the "Scattered Electron" group.</li>
+                        <li><strong>Definitions:</strong> Automatically creates the Virtual Photon ($\gamma^*$).</li>
+                        <li><strong>Specific Math:</strong> Provides <code>Q2</code>, <code>CosThetaCM</code>.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="card bg-slate-900 text-slate-200">
+            <h2 class="text-2xl font-bold text-white mb-4">4. Final User Code</h2>
+            <p class="text-slate-400 mb-4">The analysis script is clean, declarative, and type-safe.</p>
+            
+            <div class="font-mono text-sm overflow-x-auto">
+<pre><code class="language-cpp">// 1. Define Input Candidates
+rad::config::HepMCElectro hepmc{"tree", "file.root"};
+hepmc.setParticleCandidates("ele", {2, 6}); 
+hepmc.setParticleIndex("pos", 3);
+hepmc.setParticleIndex("pip", 4);
+
+// 2. Generate Combinations
+hepmc.makeCombinations();
+
+// 3. Instantiate Physics Processor (Electro-Production)
+// This automatically sets up the ScatEle group and Virtual Photon
+rad::KinematicProcElectro kine{&hepmc};
+
+// 4. Define Custom Intermediate States
+kine.Creator().Sum("Jpsi", {{"ele", "pos"}});
+kine.Creator().Sum("Z", {{"Jpsi", "pip"}});
+
+// 5. Initialize & Calculate
+kine.Init();
+
+// Electro-Specific Calculations
+kine.Q2(); 
+kine.CosThetaCM();
+
+// Generic Calculations (Inherited from Base)
+kine.Mass("JpsiMass", {"Jpsi"});
+kine.Mass("ZMass", {"Z"});
+
+// 6. Output
+hepmc.Snapshot("Z_Analysis.root");</code></pre>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center text-gray-500 text-sm py-8">
+        <p>Generated for the RAD Framework Collaboration</p>
+    </footer>
+
+</body>
+</html>

@@ -28,19 +28,19 @@ namespace combinatorics {
      * @brief Generates unique combinations by enforcing that no index is repeated within a single combination.
      * * This filters out combinations resulting from overlapping candidate lists using an unordered_set 
      * for O(1) average-time uniqueness checking.
-     * * @param candidates_vec RVec of candidate lists (RVecIndices[role]).
-     * @return RVecIndices where RVecIndices[role] holds the particle index for every valid combination.
+     * * @param candidates_vec RVec of candidate lists (RVecIndices[particle]).
+     * @return RVecIndices where RVecIndices[particle] holds the particle index for every valid combination.
      */
     RVecIndices GenerateAllCombinations(const RVecIndices& candidates_vec) {
         
-        const size_t n_roles = candidates_vec.size();
-        if (n_roles == 0) {
+        const size_t n_particles = candidates_vec.size();
+        if (n_particles == 0) {
             return RVecIndices{};
         }
 
         // --- 1. Initial Setup and Pre-calculation ---
         std::vector<size_t> max_indices;
-        max_indices.reserve(n_roles);
+        max_indices.reserve(n_particles);
         
         size_t total_combos = 1;
         for (const auto& vec : candidates_vec) {
@@ -49,14 +49,14 @@ namespace combinatorics {
             total_combos *= vec.size();
         }
 
-        std::vector<size_t> current_indices(n_roles, 0);
+        std::vector<size_t> current_indices(n_particles, 0);
 
         // --- 2. Initialize Transposed Output Structure ---
-        RVecIndices result_by_role(n_roles);
+        RVecIndices result_by_particle(n_particles);
         // We cannot reserve accurately due to skipped combinations, but reserve total_combos
         // is the best estimate to minimize reallocations.
-        for (size_t i = 0; i < n_roles; ++i) {
-            result_by_role[i].reserve(total_combos / n_roles); // Conservative estimate
+        for (size_t i = 0; i < n_particles; ++i) {
+            result_by_particle[i].reserve(total_combos / n_particles); // Conservative estimate
         }
 
         // --- 3. Iterative Combinatorial Loop with Uniqueness Filter ---
@@ -64,36 +64,35 @@ namespace combinatorics {
         for (size_t i_combo = 0; i_combo < total_combos; ++i_combo) {
             
             // Temporary structure to hold the indices of the current combination
-            std::vector<int> current_combination_indices(n_roles); 
+            std::vector<int> current_combination_indices(n_particles); 
             // The set performs the uniqueness check (O(1) average complexity)
             std::unordered_set<int> unique_indices;
             bool is_unique = true;
 
             // --- A. Build Combination and Check Uniqueness ---
-            for (size_t i_role = 0; i_role < n_roles; ++i_role) {
+            for (size_t i_particle = 0; i_particle < n_particles; ++i_particle) {
                 
-                int particle_index = candidates_vec[i_role][current_indices[i_role]];
+                int particle_index = candidates_vec[i_particle][current_indices[i_particle]];
                 
                 // Try to insert the index. If insert() returns {iterator, false}, the index already exists.
                 if (!unique_indices.insert(particle_index).second) {
                     is_unique = false;
                     break; // Combination is invalid, stop building it.
                 }
-                current_combination_indices[i_role] = particle_index;
+                current_combination_indices[i_particle] = particle_index;
             }
 
             // --- B. Record Valid Combination and Transpose ---
-	    //  if (is_unique) {
-            if (true) {
+	    if (is_unique) {
                 // If unique, transpose the indices into the result structure
-                for (size_t i_role = 0; i_role < n_roles; ++i_role) {
-                    result_by_role[i_role].push_back(current_combination_indices[i_role]);
+                for (size_t i_particle = 0; i_particle < n_particles; ++i_particle) {
+                    result_by_particle[i_particle].push_back(current_combination_indices[i_particle]);
                 }
             }
             
             // --- C. Increment the N-dimensional counter (for the next loop iteration) ---
             size_t k = 0;
-            while (k < n_roles) {
+            while (k < n_particles) {
                 current_indices[k]++;
                 if (current_indices[k] < max_indices[k]) {
                     break;
@@ -102,26 +101,25 @@ namespace combinatorics {
                 k++;
             }
         }
-        
-        return result_by_role;
+        return result_by_particle;
     }
   /**
      * @brief Generates all unique combinations (Cartesian Product) from the candidate lists
-     * and transposes the output to be indexed by particle role.
-     * * * @param candidates_vec RVec of candidate lists (RVecIndices[role]).
-     * @return RVecIndices where RVecIndices[role] returns an Indices_t containing 
+     * and transposes the output to be indexed by particle particle.
+     * * * @param candidates_vec RVec of candidate lists (RVecIndices[particle]).
+     * @return RVecIndices where RVecIndices[particle] returns an Indices_t containing 
      * the index of that particle for every combination. (size = N_combos).
      */
     // RVecIndices GenerateAllCombinations(const RVecIndices& candidates_vec) {
         
-    //     const size_t n_roles = candidates_vec.size();
-    //     if (n_roles == 0) {
+    //     const size_t n_particles = candidates_vec.size();
+    //     if (n_particles == 0) {
     //         return RVecIndices{};
     //     }
 
     //     // --- 1. Initial Setup and Validation ---
     //     std::vector<size_t> max_indices;
-    //     max_indices.reserve(n_roles);
+    //     max_indices.reserve(n_particles);
 
     //     size_t total_combos = 1;
     //     for (const auto& vec : candidates_vec) {
@@ -132,14 +130,14 @@ namespace combinatorics {
     //         total_combos *= vec.size();
     //     }
 
-    //     // Vector to track the current index for each particle role (the counter)
-    //     std::vector<size_t> current_indices(n_roles, 0);
+    //     // Vector to track the current index for each particle particle (the counter)
+    //     std::vector<size_t> current_indices(n_particles, 0);
 
     //     // --- 2. Initialize Transposed Output Structure ---
-    //     // The output is RVecIndices[role], where each element is an Indices_t of size total_combos
-    //     RVecIndices result_by_role(n_roles);
-    //     for (size_t i = 0; i < n_roles; ++i) {
-    //         result_by_role[i].reserve(total_combos);
+    //     // The output is RVecIndices[particle], where each element is an Indices_t of size total_combos
+    //     RVecIndices result_by_particle(n_particles);
+    //     for (size_t i = 0; i < n_particles; ++i) {
+    //         result_by_particle[i].reserve(total_combos);
     //     }
 
     //     // --- 3. Iterative Combinatorial Loop (N-Dimensional Counter) ---
@@ -147,19 +145,19 @@ namespace combinatorics {
     //     for (size_t i_combo = 0; i_combo < total_combos; ++i_combo) {
             
     //         // --- A. Extract and Transpose Indices ---
-    //         for (size_t i_role = 0; i_role < n_roles; ++i_role) {
+    //         for (size_t i_particle = 0; i_particle < n_particles; ++i_particle) {
                 
     //             // Get the single index from the candidate RVecI using the counter value
-    //             // candidates_vec[i_role] is the RVecI candidate list.
-    //             int particle_index = candidates_vec[i_role][current_indices[i_role]];
+    //             // candidates_vec[i_particle] is the RVecI candidate list.
+    //             int particle_index = candidates_vec[i_particle][current_indices[i_particle]];
                 
-    //             // Transpose: Append this index to the RVec dedicated to this specific role.
-    //             result_by_role[i_role].push_back(particle_index); 
+    //             // Transpose: Append this index to the RVec dedicated to this specific particle.
+    //             result_by_particle[i_particle].push_back(particle_index); 
     //         }
             
     //         // --- B. Increment the N-dimensional counter ---
     //         size_t k = 0;
-    //         while (k < n_roles) {
+    //         while (k < n_particles) {
     //             current_indices[k]++;
     //             if (current_indices[k] < max_indices[k]) {
     //                 break;
@@ -170,8 +168,8 @@ namespace combinatorics {
     //         }
     //     }
         
-    //     // The output RVecIndices is now correctly structured: [role][index_for_combo]
-    //     return result_by_role;
+    //     // The output RVecIndices is now correctly structured: [particle][index_for_combo]
+    //     return result_by_particle;
     // }
 
   

@@ -95,6 +95,29 @@ namespace rad{
       }
       return ret;
     }
+    /**
+     * @brief Initializes an Indices_t (ROOT::RVecI) with a sequence of enumerated integers.
+     * * The vector is filled with values: [istart, istart+1, ..., istart + size - 1].
+     *
+     * @param istart The starting integer value of the sequence.
+     * @param size The number of elements to generate in the sequence.
+     * @return Indices_t The initialized RVecI containing the enumerated sequence.
+     */
+    Indices_t EnumerateIndicesFrom(int istart, size_t size) {
+        
+        // 1. Create a temporary std::vector to hold the sequence.
+        // We use std::vector because std::iota is defined for it.
+        std::vector<int> temp_vec(size); 
+        
+        // 2. Fill the temporary vector with the sequence.
+        // std::iota fills the range [temp_vec.begin(), temp_vec.end()) 
+        // with sequentially increasing values, starting at istart.
+        std::iota(temp_vec.begin(), temp_vec.end(), istart);
+
+        // 3. Construct and return the Indices_t (ROOT::RVecI).
+        // RVec has a constructor that efficiently copies/moves data from a std::vector.
+        return Indices_t(std::move(temp_vec));
+    }
    /**
      * Truncate vec at n
      */
@@ -302,7 +325,7 @@ namespace rad{
     }
 
     /**
-    * Group a set of integers into an RVec
+    * Group a set of types into an RVec
     */
     template<typename T, typename... ColumnValues>
     ROOT::RVec<T> Group(ColumnValues... values){
@@ -334,8 +357,51 @@ namespace rad{
       return values.empty() ? rad::constant::InvalidEntry<T>() : ROOT::VecOps::Sum(values);
     }
     
+    /**
+     * @brief Returns the highest integer value within a single Indices_t (RVecI).
+     * @param indices The Indices_t vector to search.
+     * @return int The maximum index value. Returns constant::InvalidIndex() if the vector is empty.
+     */
+    inline int MaxIndex(const Indices_t& indices) {
+        if (indices.empty()) {
+            // Assuming constant::InvalidIndex() is defined and indicates an invalid/empty state.
+	  return constant::InvalidIndex();
+        }
+        // Use ROOT's optimized vectorized maximum calculation.
+        return ROOT::VecOps::Max(indices);
+    }
+    /**
+     * @brief Returns the highest integer value across all vectors within an RVecIndices structure.
+     * @param nested_indices The RVecIndices structure to search (RVec<RVecI>).
+     * @return int The overall maximum index value. Returns constant::InvalidIndex() if structure is empty.
+     */
+    inline int MaxIndex(const RVecIndices& nested_indices) {
+      if (nested_indices.empty()) {
+	return constant::InvalidIndex();
+      }
 
+      int global_max = std::numeric_limits<int>::min(); // Start with the smallest possible integer
+      bool found_any_element = false;
+
+      for (const auto& indices : nested_indices) {
+	if (!indices.empty()) {
+	  // Find the max within the current inner vector
+	  int current_max = ROOT::VecOps::Max(indices);
+                
+	  // Update the global maximum
+	  if (current_max > global_max) {
+	    global_max = current_max;
+	  }
+	  found_any_element = true;
+	}
+      }
+
+      if (!found_any_element) {
+	return -1; // Or constant::InvalidIndex()
+      }
+      return global_max;
+    }
     
- }//helpers
+  }//helpers
   
 }//rad

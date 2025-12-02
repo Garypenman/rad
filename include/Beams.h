@@ -31,7 +31,7 @@ namespace rad{
     
     //\brief return 4-vector of beam ion
     template<typename Tp, typename Tm>
-    PxPyPzMVector InitialFourVector(const uint idx,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
+    PxPyPzMVector InitialFourVector(const uint idx,const Tp &px, const Tp &py, const Tp &pz, const Tm &m){
       //Check if we have been provided with fixed beam parameters
       //or of we have a valid index idx
       // switch(idx){
@@ -53,7 +53,7 @@ namespace rad{
     /// idummy is to keepp the prototype of other particle adding
     /// functions which depend on other particles
     template<typename Tp, typename Tm>
-    int ParticleFixedBeam(const PxPyPzMVector& p4, RVec<Tp> &px, RVec<Tp> &py, RVec<Tp> &pz, RVec<Tm> &m,const RVecI& iafter){
+    int ParticleFixedBeam(const PxPyPzMVector& p4, Tp &px, Tp &py, Tp &pz, Tm &m,const Indices_t& iafter){
 
       //std::cout<<"ParticleFixedBeam "<< px.size()<<m<<m.size()<<std::endl;
       auto idx = px.size();

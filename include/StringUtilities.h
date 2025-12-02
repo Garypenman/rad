@@ -14,6 +14,28 @@ namespace rad{
     using RVecS = ROOT::RVec<std::string>;
 
     /**
+     * @brief Concatenates an arbitrary number of string containers into a single std::vector<std::string>.
+     * * @tparam Containers A pack of containers (e.g., std::vector<std::string>, std::initializer_list<std::string>)
+     * where the element type is convertible to std::string.
+     * @param containers The containers to be concatenated.
+     * @return std::vector<std::string> The consolidated vector of strings.
+     */
+    template <typename... Containers>
+    std::vector<std::string> concatenateStringVectors(const Containers&... containers) {
+        
+        // --- 1. Calculate the total required size (optional but recommended for reserve) ---
+        size_t total_size = (0 + ... + containers.size());
+        
+        std::vector<std::string> result;
+        result.reserve(total_size);
+
+        // --- 2. Concatenate using a C++17 Fold Expression ---
+        // The fold expression iterates over the parameter pack and inserts elements.
+        ( (result.insert(result.end(), containers.begin(), containers.end())), ... );
+        
+        return result;
+    }
+    /**
      * @brief Helper struct to append arguments with a comma separator.
      * This is used internally by the createFunctionCallString template.
      * @tparam T The type of the current argument.
@@ -285,6 +307,146 @@ std::string toLower(std::string s) {
       RVecS filteredRVecS(filteredStdVec);
 
       return filteredRVecS;
+    }
+
+    /**
+     * @brief Removes elements from the destination vector if they exist in the removal vector.
+     * * The order of elements in the destination vector is preserved.
+     * Uses std::unordered_set for O(1) average time lookups, resulting in faster overall execution.
+     *
+     * @param dest The vector to be filtered (modified in place).
+     * @param keys_to_remove The vector containing the keys that should be removed from 'dest'.
+     */
+    void removeExistingStrings(
+        std::vector<std::string>& dest, 
+        const std::vector<std::string>& keys_to_remove) 
+    {
+        // 1. Create a hash set for fast O(1) average-time lookups.
+        // This is much faster than repeatedly using std::find (which is O(N) per call).
+        std::unordered_set<std::string> removal_set(
+            keys_to_remove.begin(), 
+            keys_to_remove.end());
+
+        // 2. Use the Erase-Remove Idiom with a lambda to filter the destination vector.
+        // std::remove_if moves elements to be kept to the front of the vector.
+        dest.erase(
+            std::remove_if(dest.begin(), dest.end(),
+                // The lambda checks if the element 's' exists in our fast removal_set.
+                [&removal_set](const std::string& s) {
+                    return removal_set.count(s) > 0;
+                }),
+            dest.end()); // std::erase removes the elements moved to the end.
+    }
+  
+    /**
+     * @brief Returns a vector containing all common entries (intersection) of two input vectors.
+     * * The input vectors are sorted internally to allow for efficient set intersection.
+     *
+     * @param vec1 The first vector<string>.
+     * @param vec2 The second vector<string>.
+     * @return std::vector<std::string> A new vector containing the unique common elements.
+     */
+    std::vector<std::string> getCommonStrings(
+					      const std::vector<std::string>& vec1,
+					      const std::vector<std::string>& vec2) 
+    {
+      // 1. Create mutable copies for sorting (required by std::set_intersection).
+      std::vector<std::string> sorted_vec1 = vec1;
+      std::vector<std::string> sorted_vec2 = vec2;
+
+      // 2. Sort both input vectors. This is the necessary prerequisite for set_intersection.
+      // Complexity: O(N log N)
+      std::sort(sorted_vec1.begin(), sorted_vec1.end());
+      std::sort(sorted_vec2.begin(), sorted_vec2.end());
+
+      // 3. Determine the maximum possible size for the result vector and reserve space.
+      // The intersection size cannot be larger than the smallest input vector.
+      size_t max_size = std::min(sorted_vec1.size(), sorted_vec2.size());
+      std::vector<std::string> result;
+      result.reserve(max_size);
+
+      // 4. Perform the set intersection.
+      // Complexity: O(N + M) (linear time after sorting)
+      std::set_intersection(
+			    sorted_vec1.begin(), sorted_vec1.end(),
+			    sorted_vec2.begin(), sorted_vec2.end(),
+			    std::back_inserter(result)
+			    );
+
+      return result;
+    }
+
+    using ColumnNames_t_Std = std::vector<std::string>;
+    using NestedColumnNames_t = std::vector<std::vector<std::string>>;
+
+    /**
+     * @brief Flattens a 2D vector structure (vector<vector<string>>) into a single 1D vector.
+     * * @param nested_names The NestedColumnNames_t structure (vector<vector<string>>) to flatten.
+     * @return ColumnNames_t_Std A single std::vector<std::string> containing all entries.
+     */
+    ColumnNames_t_Std flattenColumnNames(const NestedColumnNames_t& nested_names) {
+        
+        ColumnNames_t_Std flat_names;
+        size_t total_size = 0;
+
+        // 1. Calculate total size (Optional, but good for reserving memory)
+        for (const auto& inner_vec : nested_names) {
+            total_size += inner_vec.size();
+        }
+        flat_names.reserve(total_size);
+
+        // 2. Insert the contents of each inner vector into the output vector.
+        for (const auto& inner_vec : nested_names) {
+            // Use std::vector::insert for efficient appending of the range
+            flat_names.insert(flat_names.end(), inner_vec.begin(), inner_vec.end());
+        }
+
+        return flat_names;
+    }
+
+    /**
+     * @brief Appends a specified suffix string to every element in a vector of strings.
+     * * @param input_vector The vector<string> whose elements will be modified.
+     * @param suffix The string to append to the end of every element.
+     * @return std::vector<std::string> A new vector containing the modified strings.
+     */
+    std::vector<std::string> appendSuffixToAll(
+        const std::vector<std::string>& input_vector,
+        const std::string& suffix) 
+    {
+        std::vector<std::string> result;
+        result.reserve(input_vector.size()); // Optimize memory allocation
+        
+        // Use std::transform to apply the lambda function to every element.
+        std::transform(input_vector.begin(), input_vector.end(), 
+                       std::back_inserter(result),
+                       [&suffix](const std::string& s) {
+                           return s + suffix;
+                       });
+                       
+        return result;
+    }
+  /**
+     * @brief Appends a specified suffix string to every element in a vector of strings.
+     * * @param input_vector The vector<string> whose elements will be modified.
+     * @param suffix The string to append to the end of every element.
+     * @return std::vector<std::string> A new vector containing the modified strings.
+     */
+    std::vector<std::string> prependToAll(
+        const std::vector<std::string>& input_vector,
+        const std::string& suffix) 
+    {
+        std::vector<std::string> result;
+        result.reserve(input_vector.size()); // Optimize memory allocation
+        
+        // Use std::transform to apply the lambda function to every element.
+        std::transform(input_vector.begin(), input_vector.end(), 
+                       std::back_inserter(result),
+                       [&suffix](const std::string& s) {
+                           return suffix + s;
+                       });
+                       
+        return result;
     }
   }
 }

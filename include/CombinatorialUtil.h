@@ -23,7 +23,7 @@ namespace rad {
      * with C++ types, e.g., FourVectorMassCalc<double, double>).
      * @tparam Args The types of any additional, non-indexed kinematic arguments (e.g., RVec<double> px, py, etc.).
      * * @param singleComboFunc The function to apply (must accept const RVecIndices& as its first argument).
-     * @param combo_indices The structured input holding all candidate indices: 
+     * @param combo_indices The structured input holding all candidate indices, for each set of indices (e.g. addition particles, subtraction particles): 
      * RVec<RVecCombis>[set][particle][combo].
      * @param args Any additional columns/data needed by the kinematic function (e.g., momentum components).
      * * @return ROOT::RVec<T> A vector where T is the return type of singleComboFunc, containing one result per combination.
@@ -35,11 +35,10 @@ namespace rad {
 			   F&& singleComboFunc,
 			   const ROOT::RVec<RVecCombis>& combo_indices,
 			   Args&&... args) {
-
       // Determine the return type of the single-combo function
       using T = std::invoke_result_t<F, const RVecIndices&, Args...>;       
  
-      //check how many sets of indices this functions requires
+      //check how many sets of combi indices this functions requires
       std::vector<UInt_t> n_particles;
       UInt_t n_combos = 0;
       for(const auto& indices:combo_indices){
@@ -70,6 +69,8 @@ namespace rad {
 	RVecIndices indices_for_F(n_idx_sets);
     
 	for (size_t i_idx = 0; i_idx < n_idx_sets; ++i_idx) {
+	  //sets refer to different categories of indices
+	  //e.g. positive particles and negatice particles
 	  Indices_t indices(n_particles[i_idx]);
 	 
 	  for(size_t i_particle=0;i_particle<n_particles[i_idx];++i_particle){
@@ -88,6 +89,100 @@ namespace rad {
       
       return results;
     }
+
+    /**
+     * @brief Vectorizes a single-combination kinematic kernel over all calculated combinations.
+     * * This function loops over the combination index (i_combo) and extracts the scalar momentum 
+     * components from the consolidated arrays (kine_px, kine_py, etc.) before calling the 
+     * specific kinematic calculation kernel.
+     * * @tparam F The single-combination kernel function (e.g., Q2_CombiKernel).
+     * @tparam Args A pack of the consolidated component RVecs (kine_px, kine_py, etc.).
+     * * @param singleComboKernel The calculation kernel (must be explicitly instantiated/non-templated).
+     * @param fixed_map The static ReactionMap containing the fixed array indices for lookup.
+     * @param components The pack of consolidated momentum component RVecs (kine_px, kine_py, ...)
+     * -> ComponentRVecs[icombi][icomp][iparti]
+     * * @return ROOT::RVec<ResultType_t> A vector of scalar results, one per combination.
+     */
+    
+    template <typename F>
+    ROOT::RVec<ResultType_t> ApplyKinematics(
+        F&& singleComboKernel,
+        const RVecIndexMap& fixed_map,
+        const ROOT::RVec<ROOT::RVec<RVecResultType>>& components) 
+    {
+        // Safety check: Ensure at least one component vector is present to determine size.
+      if(components.empty()) {
+	return {};
+      }
+
+      const size_t N_combis = components.size(); //should be 4
+      const size_t N_components = components[0].size(); //should be 4
+               
+      ROOT::RVec<ResultType_t> results(N_combis);
+      
+      // --- Core Execution Loop ---
+      for (size_t i_combo = 0; i_combo < N_combis; ++i_combo) {
+	// 1. Execute the single-combination kernel.
+	// The kernel expects the four component RVecs (Px, Py, Pz, M) as separate arguments.
+	// We pass the inner RVecs from the slice by index (0, 1, 2, 3).
+        
+	// NOTE: The kernel receives the particle-indexed RVecs (size N_particles) for the current combo.
+        
+	results[i_combo] = singleComboKernel(fixed_map, 
+					     components[i_combo][OrderX()],components[i_combo][OrderY()],
+					     components[i_combo][OrderZ()],components[i_combo][OrderM()]);
+	////////////////////
+      }
+
+      return results;
+    }
+    
+    /**
+     * @brief Vectorizes a single-combination kinematic kernel over all calculated combinations.
+     * * This function loops over the combination index (i_combo) and extracts the scalar momentum 
+     * components from the consolidated arrays (kine_px, kine_py, etc.) before calling the 
+     * specific kinematic calculation kernel.
+     * * @tparam F The single-combination kernel function (e.g., Q2_CombiKernel).
+     * @tparam Args A pack of the consolidated component RVecs (kine_px, kine_py, etc.).
+     * * @param singleComboKernel The calculation kernel (must be explicitly instantiated/non-templated).
+     * @param fixed_map The static ReactionMap containing the fixed array indices for lookup.
+     * @param components The pack of consolidated momentum component RVecs (kine_px, kine_py, ...)
+     * -> ComponentRVecs[icombi][icomp][iparti]
+     * * @return ROOT::RVec<ResultType_t> A vector of scalar results, one per combination.
+     */
+    
+    // template <typename F>
+    // ROOT::RVec<ResultType_t> ApplyToParticles(
+    //     F&& singleComboKernel,
+    //     const ROOT::RVec<RVecIndices>& indices,// [group][particle][combi]
+    //     const ROOT::RVec<ROOT::RVec<RVecResultType>>& components) 
+    // {
+    //     // Safety check: Ensure at least one component vector is present to determine size.
+    //   if(components.empty()) {
+    // 	return {};
+    //   }
+
+    //   const size_t N_combis = components.size(); //should be 4
+    //   const size_t N_components = components[0].size(); //should be 4
+               
+    //   ROOT::RVec<ResultType_t> results(N_combis);
+      
+    //   // --- Core Execution Loop ---
+    //   for (size_t i_combo = 0; i_combo < N_combis; ++i_combo) {
+    // 	// 1. Execute the single-combination kernel.
+    // 	// The kernel expects the four component RVecs (Px, Py, Pz, M) as separate arguments.
+    // 	// We pass the inner RVecs from the slice by index (0, 1, 2, 3).
+        
+    // 	// NOTE: The kernel receives the particle-indexed RVecs (size N_particles) for the current combo.
+        
+    // 	results[i_combo] = singleComboKernel(fixed_map, 
+    // 					     components[i_combo][OrderX()],components[i_combo][OrderY()],
+    // 					     components[i_combo][OrderZ()],components[i_combo][OrderM()]);
+    // 	////////////////////
+    //   }
+
+    //   return results;
+    // }
     
   } // namespace util
 } // namespace rad

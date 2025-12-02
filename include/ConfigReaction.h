@@ -99,8 +99,8 @@ namespace rad {
         // Remove any columns with the DoNotWriteTag
         auto tag = DoNotWriteTag();
         cols.erase(std::remove_if(cols.begin(), cols.end(),
-          [&tag](const string& col) -> bool { return col.find(tag) != std::string::npos; }),
-          cols.end());
+				  [&tag](const string& col) -> bool { return col.find(tag) != std::string::npos; }),
+		   cols.end());
 
         // Call base class cleanup (though RDFInterface currently has no columns to remove)
         RDFInterface::RemoveSnapshotColumns(cols);
@@ -156,7 +156,7 @@ namespace rad {
 	setParticleCandidates(name,[idx](){return RVecI{idx};},{});
 	AddParticleName(name);
  	AddFinalParticleName(name);
-     }
+      }
       /** 
        * Set constant index in collection for particle
        * This assumes constant position in collection (e.g in some HepMC3 files)
@@ -171,7 +171,72 @@ namespace rad {
 	setParticleCandidates(name,[idx](){return idx;},{});
 	AddParticleName(name);
  	AddFinalParticleName(name);
-     }
+      }
+      /**
+       * @brief Groups particle candidate indices for the Meson component of the final state.
+       * * * This function consolidates the candidate index lists (Indices_t) defined for individual 
+       * final-state particles into a single container representing the Meson group candidates.
+       * * * If the input list is empty, a column is still defined, containing only the 
+       * invalid index as a placeholder.
+       * * @param particles List of column names (Indices_t) representing the particles 
+       * belonging to the Meson component (e.g., {"pi+", "pi-"}).
+       * @see setGroupParticles
+       */
+      void setMesonParticles(const ROOT::RDF::ColumnNames_t& particles) {
+	if (particles.empty() == true) {
+	  std::cout << "setMesonParticles " << as_string(names::Mesons()) << " no particles, " << "give default index " << std::endl;
+	  // The default return type must match the output of setGroupParticles (RVecIndices)
+	  Define(as_string(names::Mesons()), [](){return RVecIndices{{constant::InvalidIndex()}}; }, {}); 
+	  return;
+	}
+	setGroupParticles(as_string(names::Mesons()), particles);
+      }
+
+      //-----------------------------------------------------------------------------
+
+      /**
+       * @brief Groups particle candidate indices for the Baryon component of the final state.
+       * * * This function consolidates the candidate index lists (Indices_t) defined for individual 
+       * final-state particles into a single container representing the Baryon group candidates.
+       * * * If the input list is empty, a column is still defined, containing only the 
+       * invalid index as a placeholder.
+       * * @param particles List of column names (Indices_t) representing the particles 
+       * belonging to the Baryon component (e.g., {"p", "n"}).
+       * @see setGroupParticles
+       */
+      void setBaryonParticles(const ROOT::RDF::ColumnNames_t& particles) {
+	if (particles.empty() == true) {
+	  std::cout << "setBaryonParticles " << as_string(names::Baryons()) << " no particles, " << "give default index " << std::endl;
+	  // The default return type must match the output of setGroupParticles (RVecIndices)
+	  Define(as_string(names::Baryons()), [](){return RVecIndices{{constant::InvalidIndex()}}; }, {}); 
+	  return;
+	}
+	setGroupParticles(as_string(names::Baryons()), particles);
+      }
+
+      //-----------------------------------------------------------------------------
+
+      /**
+       * @brief Defines a new RDataFrame column by aggregating multiple existing particle index vectors.
+       * * * This function uses the generic rad::helpers::Group template to take multiple 
+       * RVecI (Indices_t) columns and group them into a single RVecIndices column.
+       * * @param name The name of the new column to be defined (e.g., "Mesons" or "Baryons").
+       * @param particles List of existing column names (Indices_t) to be grouped.
+       * @note The resulting column type is RVecIndices (ROOT::RVec<Indices_t>).
+       */
+      void setGroupParticles(const string& name, const ROOT::RDF::ColumnNames_t& particles) {
+	
+	auto pstring = reaction::util::ColumnsToString(particles); // Creates string like "{p1,p2,p3,p4,...}"
+	pstring = pstring.substr(1, pstring.size() - 2); // Removes outer braces to get: "p1,p2,p3,p4,..."
+	
+	// Defines the new column using the Group<Indices_t> template, which returns RVec<Indices_t>
+	Define(name, Form("rad::helpers::Group<rad::Indices_t>(%s)", pstring.data()));
+
+	_groupMap[name]=particles;
+	
+	return;
+      }
+      
       
       /**
        * @brief Generates all possible combinations of the defined particle candidates.
@@ -199,13 +264,21 @@ namespace rad {
           candidateCols.push_back(indices_name);
         }
 
-        // 3. Generate the RVec<RVecI> column named "combos", each element is a set particle
+        // 3. Generate the RVecCombis column named ReactionCombos(), each element is a set particle
         Define(names::ReactionCombos(),
-          Form("rad::combinatorics::GenerateAllCombinations(%s)", rad::reaction::util::ColumnsToString(candidateCols).data()));
+	       utils::createFunctionCallStringFromVec("rad::combinatorics::GenerateAllCombinations",
+						      {rad::reaction::util::ColumnsToString(candidateCols)}));
+	       //  Form("rad::combinatorics::GenerateAllCombinations(%s)", rad::reaction::util::ColumnsToString(candidateCols).data()));
 
 	// 4. Split ReactionCombos into individal particle vectors, reuse particle indice names
+	// generate combitorial indices for each data type
+	for(auto &atype:_type_comps){
+	  for(size_t ip=0;ip<candidateCols.size();++ip){
+	    Define(atype.first + candidateCols[ip],[ip](const RVecIndices& part_combos){return part_combos[ip];},{names::ReactionCombos().data()});
+	  }
+	}
 	for(size_t ip=0;ip<candidateCols.size();++ip){
-	  Redefine(candidateCols[ip],[ip](ROOT::RVec<RVecI> part_combos){return part_combos[ip];},{names::ReactionCombos().data()});
+	  Redefine(candidateCols[ip],[ip](const RVecIndices& part_combos){return part_combos[ip];},{names::ReactionCombos().data()});
 	}
 	
 	
@@ -349,6 +422,8 @@ namespace rad {
 	if(_primary_type.empty()==true) _primary_type=atype;
 	_type_comps[atype][names::P4Components()] = Form("%spx,%spy,%spz,%sm",atype.data(),atype.data(),atype.data(),atype.data());
 	_type_comps[atype][names::P3Components()] = Form("%spx,%spy,%spz",atype.data(),atype.data(),atype.data());
+
+	_types.push_back(atype);
      }
 
       /** 
@@ -368,7 +443,11 @@ namespace rad {
 	  cout<<"TypeColTypeString no valid vars"<<endl;exit(0);
 	}
       }
-
+      /**
+       * Get names of all types of data
+       */
+      std::vector<std::string> GetTypes() const {return _types;}
+      
       /**
        *  change name of this first type column to same name without type prefix
        */
@@ -380,6 +459,9 @@ namespace rad {
 	}
 	setBranchAlias(_primary_type+name,name);
       }
+
+      const ROOT::RDF::ColumnNames_t getGroup(const string& name) const {return _groupMap.at(name);}
+      
     protected:
 
       bool _useBeamsFromMC=false; 
@@ -389,10 +471,12 @@ namespace rad {
       // Combinatorial Members
       std::map<string, std::string> _candidateExpressions;
       std::map<string, ROOT::RDF::ColumnNames_t> _lambdaCandidateDependencies; 
+      std::map<string, ROOT::RDF::ColumnNames_t> _groupMap; 
       bool _isCombinatorialMode = false;
       // std::string _firstDefinedCombiColumn; // Needed for robust Unroll in Snapshot
 
       std::map<string, std::map<string, string>> _type_comps;
+      std::vector<std::string> _types;
       std::string _primary_type;
       ROOT::RDF::ColumnNames_t _particleNames;
       ROOT::RDF::ColumnNames_t _finalNames;
