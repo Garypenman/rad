@@ -448,5 +448,21 @@ std::string toLower(std::string s) {
                        
         return result;
     }
+  
+  /**
+     * @brief Generates a JIT string to pack multiple RDataFrame columns into a single RVec<RVec>.
+     * * Example Output: "rad::utils::PackColumns(rec_px, rec_py, rec_pz)"
+     * * @param cols The list of column names to pack.
+     * @return std::string The function call string.
+     */
+    inline std::string createPackVectorString(const std::vector<std::string>& cols) {
+        if (cols.empty()) {
+            return ""; // Should be handled by caller, but safe default
+        }
+        
+        // We use a variadic C++ helper function 'rad::utils::PackColumns'
+        // which must be available to the Cling JIT.
+        return createFunctionCallStringFromVec("rad::utils::PackColumns", cols);
+    }
   }
 }

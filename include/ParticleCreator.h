@@ -4,65 +4,121 @@
 #include "StringUtilities.h"
 #include "ParticleCreatorMethods.h"
 #include <map>
+#include <set>
+#include <vector>
+#include <string>
+#include <stdexcept>
 
 namespace rad {
 namespace config {
 
     using StructuredNames_t = std::vector<ParticleNames_t>;
     using IndexMap_t = std::unordered_map<std::string, int>;
-    using ParticleCreatorFunc_t = void (*)(const Indice_t, const RVecIndices&, ROOT::RVecD&, ROOT::RVecD&, ROOT::RVecD&, ROOT::RVecD&);
+    
+    /**
+     * @brief Function pointer type for concrete, non-templated particle creation logic.
+     */
+    using ParticleCreatorFunc_t = void (*)(
+        const Indice_t position, 
+        const RVecIndices&, 
+        ROOT::RVecD&, ROOT::RVecD&, ROOT::RVecD&, ROOT::RVecD&
+    );
     
     /**
      * @brief Manages the definition, indexing, and creation of intermediate particles.
-     * * This class is Topology Agnostic. It relies on the controlling Kinematics class
-     * to define which particle groups (Scattered Electrons, etc.) exist in the reaction.
+     * * This class acts as the "Architect" of the reaction topology.
+     * * Features:
+     * 1. Topology Agnostic: Configures groups via the controlling Kinematics class.
+     * 2. Twin Topology Support: Can copy configuration and add suffixes to avoid collisions.
+     * 3. Index Adoption: Can "borrow" indices from a Master creator for zero-cost re-analysis.
      */
     class ParticleCreator {
 
     public:
+      
       ParticleCreator() = default;
-      explicit ParticleCreator(ConfigReaction* cr) : _reaction{cr} {
-          // Set Defaults for standard topologies (can be overridden)
+
+      /**
+       * @brief Standard Constructor.
+       * Sets up default groups (Beams, Baryons, Mesons).
+       * @param cr The ConfigReaction interface.
+       * @param suffix Optional suffix for all output columns (e.g. "_miss").
+       */
+      explicit ParticleCreator(ConfigReaction* cr, const std::string& suffix = "") 
+        : _reaction{cr}, _suffix{suffix} {
+          // Default Beam Names
           _beam_names = {names::BeamIon(), names::BeamEle()};
           
-          // Default Groups (Baryons and Mesons are standard)
+          // Default Group Mappings (Look up in ConfigReaction)
           DefineGroup(names::OrderBaryons(), names::Baryons());
           DefineGroup(names::OrderMesons(), names::Mesons());
-          
-          // NOTE: ScatEle is NOT defined by default. 
-          // ElectroKinematics must explicitly register it.
       }
-      
-      // --- Configuration Interface ---
 
       /**
-       * @brief Maps a ConfigReaction group name to a fixed ParticleGroupOrder slot.
-       * * Example: DefineGroup(names::OrderScatEle(), "scat_ele")
-       * @param order The fixed slot index (from names::ParticleGroupOrder).
-       * @param groupName The name of the group in ConfigReaction (e.g., "baryons").
+       * @brief Copy Constructor (The Fork).
+       * Copies all definitions (Jpsi, Z, etc.) from another creator but sets a new suffix.
+       * Used to create a divergent topology from a common base.
+       */
+      ParticleCreator(const ParticleCreator& other, const std::string& new_suffix) 
+        : _reaction(other._reaction),
+          _suffix(new_suffix),
+          _beam_names(other._beam_names),
+          _config_groups(other._config_groups),
+          _explicit_groups(other._explicit_groups),
+          // Copy internal definitions
+          _p_names(other._p_names),
+          _p_creators(other._p_creators),
+          _p_required(other._p_required),
+          _p_stru_depends(other._p_stru_depends),
+          _dependencies(other._dependencies),
+          _createIndex(other._createIndex)
+          // Runtime maps (_nameIndex, etc.) are NOT copied; they are rebuilt on Init.
+      {}
+      
+      void SetReaction(ConfigReaction* reaction) { _reaction = reaction; }
+      ConfigReaction* Reaction() const { return _reaction; }
+
+      // =======================================================================
+      // Configuration Interface
+      // =======================================================================
+
+      /**
+       * @brief Maps a fixed ParticleGroupOrder slot to a ConfigReaction group name.
+       * Example: DefineGroup(names::OrderScatEle(), names::ScatGroup())
        */
       void DefineGroup(int order, const std::string& groupName) {
-          _topology_groups[order] = groupName;
+          _config_groups[order] = groupName;
+          _explicit_groups.erase(order); // Priority rule: Specific definition clears override
       }
 
       /**
-       * @brief Sets the specific names of the beam particles.
-       * Default is {names::BeamIon(), names::BeamEle()}.
+       * @brief Manually defines the particles in a group (Override).
+       * Bypasses ConfigReaction lookup. Useful for "n_miss" topologies.
+       * Example: OverrideGroup(names::OrderBaryons(), {"n_miss"})
        */
+      void OverrideGroup(int order, const std::vector<std::string>& particles) {
+          _explicit_groups[order] = particles;
+          _config_groups.erase(order);   // Clear config lookup for this slot
+      }
+
       void SetBeamNames(const std::vector<std::string>& beams) {
           _beam_names = beams;
       }
 
-      // --- Core Functionality ---
+      // =======================================================================
+      // Particle Definition Logic
+      // =======================================================================
 
       void AddParticle(const std::string& name, ParticleCreatorFunc_t func, const StructuredNames_t& depends={{}}) {
         _p_names.push_back(name);
+        
         auto flat_depends = utils::flattenColumnNames(depends);
         _p_required.push_back(flat_depends);
         _dependencies.insert(flat_depends.begin(), flat_depends.end());
         _p_stru_depends.push_back(depends);
         _p_creators.push_back(func);
         _createIndex[name] = GetNCreated() - 1;
+        
         _reaction->setParticleIndex(name, constant::InvalidEntry<int>());
       }
 
@@ -74,30 +130,77 @@ namespace config {
         AddParticle(name, ParticleCreateByDiff, depends);
       }
 
-      // --- Indexing & Execution ---
+      // =======================================================================
+      // Indexing & Initialization (Master Mode)
+      // =======================================================================
 
+      /**
+       * @brief Calculates the static ReactionMap and defines RDataFrame columns.
+       * Used by the MASTER processor.
+       */
       void InitMap(const std::vector<std::string>& types);
-      
+
+      // =======================================================================
+      // Indexing & Initialization (Linked/Adoption Mode)
+      // =======================================================================
+
+      /**
+       * @brief Check if a particle is defined in this creator.
+       */
+      bool HasParticle(const std::string& name) const {
+          return _nameIndex.find(name) != _nameIndex.end();
+      }
+
+      const IndexMap_t& GetIndexMap() const { return _nameIndex; }
+
+      /**
+       * @brief Adoption Mode: Copy indices from Master instead of calculating new ones.
+       * This ensures the Linked processor reads the correct slots in the shared array.
+       */
+      void AdoptIndices(const ParticleCreator& master);
+
+      /**
+       * @brief Rebuilds the ReactionMap using Adopted indices but Local groups.
+       * Used by the LINKED processor.
+       */
+      void RebuildReactionMap();
+
+      // =======================================================================
+      // Execution
+      // =======================================================================
+
+      /**
+       * @brief Executes creation logic for an event.
+       */
       void ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 
                          ROOT::RVecD& pz, ROOT::RVecD& m) const;
 
-      // Accessors
+      // =======================================================================
+      // Accessors & Helpers
+      // =======================================================================
+
       size_t GetNCreated() const { return _p_names.size(); }
+      
+      // Index Accessors
       Int_t GetReactionIndex(const std::string& name) const { return _nameIndex.at(name); }
       Int_t GetReactionIndex(size_t input) const { return _input2ReactionIndex[input]; }
+      
+      // Get the suffixed name of the ReactionMap column
+      std::string GetMapName() const { return names::ReactionMap() + _suffix + config::DoNotWriteTag(); }
 
-      // Helper
       std::vector<std::string> GetPriorDependencies();
       Indices_t CreateIndices(IndexMap_t& nameIndex, const ParticleNames_t& names, size_t& idx);
 
     private:
       ConfigReaction* _reaction = nullptr;
+      std::string _suffix;
       
-      // Configuration
+      // Configuration Storage
       std::vector<std::string> _beam_names;
-      std::map<int, std::string> _topology_groups; // Maps Order ID -> Group Name
+      std::map<int, std::string> _config_groups; // Map<OrderEnum, ConfigGroupName>
+      std::map<int, std::vector<std::string>> _explicit_groups; // Map<OrderEnum, ExplicitList>
 
-      // Internal State
+      // Particle Definitions
       ParticleNames_t _p_names;
       std::vector<ParticleCreatorFunc_t> _p_creators;
       std::vector<ParticleNames_t> _p_required;
@@ -105,6 +208,7 @@ namespace config {
       ROOT::RVec<RVecIndices> _p_dep_indices;
       std::set<std::string> _dependencies;
       
+      // Runtime Maps
       ParticleNames_t _inputNames;
       RVecIndexMap _mapIndices;
       IndexMap_t _nameIndex;
@@ -126,10 +230,15 @@ namespace config {
     inline Indices_t ParticleCreator::CreateIndices(IndexMap_t& nameIndex, const ParticleNames_t& names, size_t& idx) {
         Indices_t indices{};
         for(const auto& name : names) {
+          // If already mapped, skip (unless we want to enforce re-mapping?)
+          // Standard logic: First come, first served for index assignment.
           if(nameIndex.count(name) == 0) {
             indices.push_back(idx);
             nameIndex[name] = idx;
             ++idx;
+          } else {
+             // If existing, just reuse the index (don't increment idx)
+             indices.push_back(nameIndex[name]);
           }
         }
         return indices;
@@ -137,64 +246,74 @@ namespace config {
 
     inline void ParticleCreator::InitMap(const std::vector<std::string>& types) {
       
-      // 1. Resolve Configured Groups
+      // 1. Gather Input Particles
       ParticleNames_t all_group_particles;
       
-      // Add Beams
+      // Beams
       all_group_particles.insert(all_group_particles.end(), _beam_names.begin(), _beam_names.end());
 
-      // Add Registered Groups (Baryons, Mesons, ScatEle if defined)
-      cout<<"Add Registered Groups number = "<<_topology_groups.size()<<endl;
-      for(auto const& [order, groupName] : _topology_groups) {
-	  cout<<order<<" "<<groupName <<endl;
-	  auto particles = _reaction->getGroup(groupName);
-          all_group_particles.insert(all_group_particles.end(), particles.begin(), particles.end());
-     }
+      // Iterate over ALL possible group slots (Baryons, Mesons, ScatEle...)
+      // We check Explicit overrides first, then Config lookups.
+      // We scan a reasonable range of enums or specific known ones.
+      std::vector<int> orders = {names::OrderBaryons(), names::OrderMesons(), names::OrderScatEle()};
+      
+      for(int order : orders) {
+          if(_explicit_groups.count(order)) {
+              // Use Explicit List
+              const auto& list = _explicit_groups[order];
+              all_group_particles.insert(all_group_particles.end(), list.begin(), list.end());
+          } else if (_config_groups.count(order)) {
+              // Use Config Lookup
+              try {
+                 auto particles = _reaction->getGroup(_config_groups[order]);
+                 all_group_particles.insert(all_group_particles.end(), particles.begin(), particles.end());
+              } catch (...) { /* Group undefined in config, skip */ }
+          }
+      }
 
-      // Add Dependencies
+      // Dependencies
       auto dep_names = GetPriorDependencies();
       utils::removeExistingStrings(dep_names, all_group_particles);
       
-      // 2. Define Master Input List
+      // Master List
       _inputNames = all_group_particles;
       _inputNames.insert(_inputNames.end(), dep_names.begin(), dep_names.end());
-      utils::removeExistingStrings(_inputNames, _p_names); // Safety check
+      utils::removeExistingStrings(_inputNames, _p_names);
 
-      // Define KineIndices in RDF
-      cout<<"Define KineIndices in RDF"<<endl;
-     for(const auto& type : types) {
+      // Define KineIndices in RDF (with Suffix if needed, usually Master defines these)
+      // Note: KineIndices are generally shared if topologies align, but safest to suffix them 
+      // if this is a standalone init.
+      for(const auto& type : types) {
         auto typeNames = utils::prependToAll(_inputNames, type);
-        _reaction->setGroupParticles(type + names::KineIndices(), typeNames);
-	cout<<type + names::KineIndices()<<" "<<typeNames.size()<<endl;
+        _reaction->setGroupParticles(type + names::KineIndices() + _suffix, typeNames); 
       }
 
-      // Store input map
       size_t in_idx = 0;
       CreateIndices(_nameInputIndex, _inputNames, in_idx);
        
-      // 3. Calculate Fixed Positions (ReactionMap)
-      // We must construct the RVecIndexMap in the strict order of names::ParticleGroupOrder
-      // enum: {Beams, Baryons, Mesons, ScatEle, Deps, Createds}
-      
+      // 2. Calculate Fixed Positions (ReactionMap)
       size_t idx = 0;
       
       // A. Beams
       Indices_t idxBeam = CreateIndices(_nameIndex, _beam_names, idx);
       
-      // B. Dynamic Groups (Baryons, Mesons, ScatEle)
-      // We assume the user has registered these in the correct enum order, 
-      // or we explicitly fetch them by enum ID.
-      Indices_t idxBaryons = CreateIndices(_nameIndex, _reaction->getGroup(_topology_groups[names::OrderBaryons()]), idx);
-      Indices_t idxMesons = CreateIndices(_nameIndex, _reaction->getGroup(_topology_groups[names::OrderMesons()]), idx);
-      
-      // C. Scattered Electron (Optional)
-      Indices_t idxScat_ele;
-      if(_topology_groups.count(names::OrderScatEle())) {
-          idxScat_ele = CreateIndices(_nameIndex, _reaction->getGroup(_topology_groups[names::OrderScatEle()]), idx);
-      }
-      // If not defined, idxScat_ele remains empty {} which is correct.
+      // Helper to fetch indices based on configuration state
+      auto get_indices_for_group = [&](int order) {
+          if (_explicit_groups.count(order)) {
+              return CreateIndices(_nameIndex, _explicit_groups[order], idx);
+          }
+          if (_config_groups.count(order)) {
+              try {
+                  return CreateIndices(_nameIndex, _reaction->getGroup(_config_groups[order]), idx);
+              } catch (...) {}
+          }
+          return Indices_t{};
+      };
 
-      // D. Dependencies & Created
+      Indices_t idxBaryons  = get_indices_for_group(names::OrderBaryons());
+      Indices_t idxMesons   = get_indices_for_group(names::OrderMesons());
+      Indices_t idxScat_ele = get_indices_for_group(names::OrderScatEle());
+
       Indices_t idxDeps = CreateIndices(_nameIndex, dep_names, idx);
       Indices_t idxCreate = CreateIndices(_nameIndex, _p_names, idx);
 
@@ -202,13 +321,11 @@ namespace config {
       RVecIndexMap retIndices{idxBeam, idxBaryons, idxMesons, idxScat_ele, idxDeps, idxCreate};
       
       _mapIndices = retIndices;
-      _reaction->Define(names::ReactionMap(), [retIndices]() { return retIndices; }, {});
+      _reaction->Define(GetMapName(), [retIndices]() { return retIndices; }, {});
       
       // Helper Columns
-      cout<<" Helper Columns "<<endl;
       for(const auto& particle : _nameIndex) {
-        _reaction->Define(names::data_type::Kine() + particle.first, [idx = particle.second](){ return idx; }, {});
-	cout<< names::data_type::Kine() + particle.first <<" "<<idx<<endl;
+        _reaction->Define(names::data_type::Kine() + particle.first + _suffix, [idx = particle.second](){ return idx; }, {});
       }
 
       // Conversion Map
@@ -217,7 +334,7 @@ namespace config {
         _input2ReactionIndex[particle.second] = GetReactionIndex(particle.first);
       }
       
-      // 4. Resolve Dependencies
+      // 3. Resolve Dependencies (Map Names -> Indices)
       for (size_t i = 0; i < GetNCreated(); ++i) {
         RVecIndices vec_indices;
         for(const auto& type_index : _p_stru_depends[i]) {
@@ -231,7 +348,60 @@ namespace config {
       }
     }
 
-    inline void ParticleCreator::ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, ROOT::RVecD& pz, ROOT::RVecD& m) const {
+    inline void ParticleCreator::AdoptIndices(const ParticleCreator& master) {
+        // 1. Validation
+        for(const auto& name : _p_names) {
+            if(!master.HasParticle(name)) {
+                throw std::runtime_error("Linked Topology Error: Particle '" + name + 
+                    "' required by Linked processor is missing in Master.");
+            }
+        }
+        
+        // 2. Copy Maps
+        _nameIndex = master.GetIndexMap();
+        _input2ReactionIndex = master._input2ReactionIndex; 
+    }
+
+    inline void ParticleCreator::RebuildReactionMap() {
+        // We use the ADOPTED indices (from _nameIndex) to build a NEW map based on LOCAL groups.
+        
+        // Helper to look up adopted indices
+        auto get_indices = [&](const ParticleNames_t& names) {
+            Indices_t ret;
+            for(const auto& n : names) ret.push_back(_nameIndex.at(n));
+            return ret;
+        };
+
+        // Helper to resolve groups based on local config (Explicit or Config)
+        auto get_group_indices = [&](int order) {
+            if (_explicit_groups.count(order)) {
+                return get_indices(_explicit_groups[order]);
+            }
+            if (_config_groups.count(order)) {
+                try {
+                    return get_indices(_reaction->getGroup(_config_groups[order]));
+                } catch (...) {}
+            }
+            return Indices_t{};
+        };
+
+        Indices_t idxBeam     = get_indices(_beam_names);
+        Indices_t idxBaryons  = get_group_indices(names::OrderBaryons());
+        Indices_t idxMesons   = get_group_indices(names::OrderMesons());
+        Indices_t idxScat_ele = get_group_indices(names::OrderScatEle());
+        Indices_t idxDeps     = get_indices(GetPriorDependencies());
+        Indices_t idxCreate   = get_indices(_p_names);
+
+        RVecIndexMap retIndices{idxBeam, idxBaryons, idxMesons, idxScat_ele, idxDeps, idxCreate};
+        
+        // Define ONLY the Map (Helper columns and KineIndices are aliased by Processor)
+        _mapIndices = retIndices;
+        _reaction->Define(GetMapName(), [retIndices]() { return retIndices; }, {});
+    }
+
+    inline void ParticleCreator::ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 
+                                               ROOT::RVecD& pz, ROOT::RVecD& m) const 
+    {
       for (size_t i = 0; i < GetNCreated(); ++i) {
         _p_creators[i](_nameIndex.at(_p_names[i]), _p_dep_indices[i], px, py, pz, m);
       }
@@ -246,111 +416,101 @@ namespace config {
 // #include "ConfigReaction.h"
 // #include "StringUtilities.h"
 // #include "ParticleCreatorMethods.h"
+// #include <map>
 
-// namespace rad{
-//   namespace config{
+// namespace rad {
+// namespace config {
+
 //     using StructuredNames_t = std::vector<ParticleNames_t>;
-//     using IndexMap_t = std::unordered_map<std::string,int>;
+//     using IndexMap_t = std::unordered_map<std::string, int>;
+//     using ParticleCreatorFunc_t = void (*)(const Indice_t, const RVecIndices&, ROOT::RVecD&, ROOT::RVecD&, ROOT::RVecD&, ROOT::RVecD&);
     
 //     /**
-//      * @brief Type alias for the concrete, non-templated particle creation function.
-//      * * All creator functions must match this signature for storage in std::vector.
+//      * @brief Manages the definition, indexing, and creation of intermediate particles.
+//      * * This class is Topology Agnostic. It relies on the controlling Kinematics class
+//      * to define which particle groups (Scattered Electrons, etc.) exist in the reaction.
 //      */
-//     using ParticleCreatorFunc_t = void (*)(
-// 					   const Indice_t position, //position to add at
-// 					   const RVecIndices&,  // indices
-// 					   ROOT::RVecD&,   // px
-// 					   ROOT::RVecD&,   // py
-// 					   ROOT::RVecD&,   // pz
-// 					   ROOT::RVecD&    // m
-// 					   );
-    
-//     /////////////////////////////////////////////////////////////////////////////////
 //     class ParticleCreator {
 
 //     public:
-      
 //       ParticleCreator() = default;
-//       ParticleCreator(ConfigReaction* cr):_reaction{cr}{};
-      
-    
-//       void SetReaction(ConfigReaction* reaction){_reaction=reaction;}
-//       ConfigReaction* Reaction() const { return _reaction;}
-
-   
-//       void AddParticle(const std::string& name,ParticleCreatorFunc_t func,const StructuredNames_t& depends={{}}){
-// 	//all _p_ datamembers must be in synch
-// 	_p_names.push_back(name);
-// 	//keep particle required to creat this one
-// 	auto flat_depends = utils::flattenColumnNames(depends);
-// 	_p_required.push_back(flat_depends);
-// 	//add to unique dependencies container
-// 	_dependencies.insert(flat_depends.begin(),flat_depends.end());
-// 	//save origin depends to recreate the indice structure
-// 	_p_stru_depends.push_back(depends);
-// 	//save the function
-// 	_p_creators.push_back(func);
-// 	//save the index
-// 	_createIndex[name]=GetNCreated()-1;
-// 	//tell reaction about this particle
-// 	_reaction->setParticleIndex(name,constant::InvalidEntry<int>());
-//       }
-//       size_t GetNCreated() const {return _p_names.size();}
-
-//       std::vector<std::string> GetPriorDependencies(){
-
-// 	//convert set to vector
-// 	std::vector<std::string> vec_deps(_dependencies.begin(), _dependencies.end());
-// 	//get dependencies which are created particles
-// 	auto depCreated = utils::getCommonStrings(_p_names,vec_deps);
-	
-// 	//must remove deps that are themselves created particles from vec_deps
-// 	utils::removeExistingStrings(vec_deps,_p_names);
-	
-// 	return vec_deps;
+//       explicit ParticleCreator(ConfigReaction* cr) : _reaction{cr} {
+//           // Set Defaults for standard topologies (can be overridden)
+//           _beam_names = {names::BeamIon(), names::BeamEle()};
+          
+//           // Default Groups (Baryons and Mesons are standard across almost all fixed-target physics)
+//           DefineGroup(names::OrderBaryons(), names::Baryons());
+//           DefineGroup(names::OrderMesons(), names::Mesons());
+          
+//           // NOTE: ScatEle is NOT defined by default. 
+//           // ElectroKinematics must explicitly register it.
 //       }
       
-//       Int_t GetInputIndex(const std::string& name) const{return _nameInputIndex.at(name);}
-//       Int_t GetReactionIndex(const std::string& name) const {return _nameIndex.at(name);}
-//       Int_t GetReactionIndex(size_t input) const {return _input2ReactionIndex[input];}
-      
-//       ParticleCreatorFunc_t GetMethod(const std::string& name) const{ return _p_creators[_createIndex.at(name)];}
-//       ///given list of names create indices for them
-//       ///and map them to the particle name
-//       Indices_t CreateIndices(IndexMap_t& nameIndex ,const ParticleNames_t& names, size_t& idx){
-       
-// 	Indices_t indices{};
-// 	for(const auto& name:names){
-// 	  if(nameIndex.count(name) > 0 ){
-// 	    std::cout<<" Warning : ParticleCreator::SortIndices I have multiple "<<name<<" for index map"<<endl;
-// 	  }
-// 	  else{
-// 	    indices.push_back(idx);
-// 	    nameIndex[name] = idx;
-// 	    ++idx;
-// 	  }
-// 	}
-// 	return indices;
+//       // --- Configuration Interface ---
+
+//       /**
+//        * @brief Maps a ConfigReaction group name to a fixed ParticleGroupOrder slot.
+//        * * Example: DefineGroup(names::OrderScatEle(), "scat_ele")
+//        * @param order The fixed slot index (from names::ParticleGroupOrder).
+//        * @param groupName The name of the group in ConfigReaction (e.g., "baryons").
+//        */
+//       void DefineGroup(int order, const std::string& groupName) {
+//           _topology_groups[order] = groupName;
 //       }
-      
+
+//       /**
+//        * @brief Sets the specific names of the beam particles.
+//        * Default is {names::BeamIon(), names::BeamEle()}.
+//        */
+//       void SetBeamNames(const std::vector<std::string>& beams) {
+//           _beam_names = beams;
+//       }
+
+//       // --- Core Functionality ---
+
+//       void AddParticle(const std::string& name, ParticleCreatorFunc_t func, const StructuredNames_t& depends={{}}) {
+//         _p_names.push_back(name);
+//         auto flat_depends = utils::flattenColumnNames(depends);
+//         _p_required.push_back(flat_depends);
+//         _dependencies.insert(flat_depends.begin(), flat_depends.end());
+//         _p_stru_depends.push_back(depends);
+//         _p_creators.push_back(func);
+//         _createIndex[name] = GetNCreated() - 1;
+//         _reaction->setParticleIndex(name, constant::InvalidEntry<int>());
+//       }
+
+//       void Sum(const std::string& name, const StructuredNames_t& depends={{}}) {
+//         AddParticle(name, ParticleCreateBySum, depends);
+//       }
+
+//       void Diff(const std::string& name, const StructuredNames_t& depends={{}}) {
+//         AddParticle(name, ParticleCreateByDiff, depends);
+//       }
+
+//       // --- Indexing & Execution ---
+
 //       void InitMap(const std::vector<std::string>& types);
-//       void ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 
-// 			 ROOT::RVecD& pz, ROOT::RVecD& m) const ;
-
-//       //User Shortcuts
-//       //e.g. Creator().Sum("interm",{{"p1","p2"}})  interm = p1 + p2
-//       void Sum(const std::string& name,const  StructuredNames_t& depends={{}}){
-// 	AddParticle(name,ParticleCreateBySum,depends);
-//       }
-//       //e.g. Creator().Sum("pdiff",{{"pplus1","pplus2"},{"pminus1"}})
-//       //=> pdiff = pplus1+ pplus2 - pminus
-//       void Diff(const std::string& name,const  StructuredNames_t& depends={{}}){
-// 	AddParticle(name,ParticleCreateByDiff,depends);
-//       }
-       
-//     private:
       
-//       ConfigReaction* _reaction=nullptr;
+//       void ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 
+//                          ROOT::RVecD& pz, ROOT::RVecD& m) const;
+
+//       // Accessors
+//       size_t GetNCreated() const { return _p_names.size(); }
+//       Int_t GetReactionIndex(const std::string& name) const { return _nameIndex.at(name); }
+//       Int_t GetReactionIndex(size_t input) const { return _input2ReactionIndex[input]; }
+
+//       // Helper
+//       std::vector<std::string> GetPriorDependencies();
+//       Indices_t CreateIndices(IndexMap_t& nameIndex, const ParticleNames_t& names, size_t& idx);
+
+//     private:
+//       ConfigReaction* _reaction = nullptr;
+      
+//       // Configuration
+//       std::vector<std::string> _beam_names;
+//       std::map<int, std::string> _topology_groups; // Maps Order ID -> Group Name
+
+//       // Internal State
 //       ParticleNames_t _p_names;
 //       std::vector<ParticleCreatorFunc_t> _p_creators;
 //       std::vector<ParticleNames_t> _p_required;
@@ -363,135 +523,132 @@ namespace config {
 //       IndexMap_t _nameIndex;
 //       IndexMap_t _nameInputIndex;
 //       IndexMap_t _createIndex;
-
 //       Indices_t _input2ReactionIndex;
 //     };
 
-  
-//     void ParticleCreator::InitMap(const std::vector<std::string>& types){
-      
-//       // --- 1. Create initial kinematic groups ---
-//       auto beam_names = {names::BeamIon(), names::BeamEle()};
-//       auto baryon_names = _reaction->getGroup(names::Baryons());
-//       auto meson_names = _reaction->getGroup(names::Mesons());
-//       auto scat_names = {names::ScatEle()}; 
-//       auto dep_names=GetPriorDependencies();
-//       //can remove particles already existing in other groups from input dep_names
-//       utils::removeExistingStrings(dep_names,
-// 				   utils::concatenateStringVectors(beam_names, baryon_names, meson_names, scat_names));
-//       // --- 2. Define the input particles already Defined ---
-//       // Consolidate all particle names into one list to define the order of the final momentum arrays.
-//       _inputNames = utils::concatenateStringVectors(beam_names, baryon_names, meson_names, scat_names, dep_names);
-      
-//       //remove created particles from list of inputs
-//       utils::removeExistingStrings(_inputNames,_p_names);
+//     // ========================================================================
+//     // Implementation
+//     // ========================================================================
 
-//       //Need to define a set of KineIndices for each type
-//       for(const auto& type:types){
-// 	//append type to indices
-// 	auto typeNames = utils::prependToAll(_inputNames, type);
-// 	//Define input indices in RDF
-// 	_reaction->setGroupParticles(type+names::KineIndices(), typeNames); // Defines the ordered column
-// 	cout<<" input indices "<< utils::combineVectorToQuotedString(typeNames) <<endl;
+//     inline std::vector<std::string> ParticleCreator::GetPriorDependencies() {
+//         std::vector<std::string> vec_deps(_dependencies.begin(), _dependencies.end());
+//         utils::removeExistingStrings(vec_deps, _p_names);
+//         return vec_deps;
+//     }
+
+//     inline Indices_t ParticleCreator::CreateIndices(IndexMap_t& nameIndex, const ParticleNames_t& names, size_t& idx) {
+//         Indices_t indices{};
+//         for(const auto& name : names) {
+//           if(nameIndex.count(name) == 0) {
+//             indices.push_back(idx);
+//             nameIndex[name] = idx;
+//             ++idx;
+//           }
+//         }
+//         return indices;
+//     }
+
+//     inline void ParticleCreator::InitMap(const std::vector<std::string>& types) {
+      
+//       // 1. Resolve Configured Groups
+//       ParticleNames_t all_group_particles;
+      
+//       // Add Beams
+//       all_group_particles.insert(all_group_particles.end(), _beam_names.begin(), _beam_names.end());
+
+//       // Add Registered Groups (Baryons, Mesons, ScatEle if defined)
+//       cout<<"Add Registered Groups number = "<<_topology_groups.size()<<endl;
+//       for(auto const& [order, groupName] : _topology_groups) {
+// 	  cout<<order<<" "<<groupName <<endl;
+// 	  auto particles = _reaction->getGroup(groupName);
+//           all_group_particles.insert(all_group_particles.end(), particles.begin(), particles.end());
+//      }
+
+//       // Add Dependencies
+//       auto dep_names = GetPriorDependencies();
+//       utils::removeExistingStrings(dep_names, all_group_particles);
+      
+//       // 2. Define Master Input List
+//       _inputNames = all_group_particles;
+//       _inputNames.insert(_inputNames.end(), dep_names.begin(), dep_names.end());
+//       utils::removeExistingStrings(_inputNames, _p_names); // Safety check
+
+//       // Define KineIndices in RDF
+//       cout<<"Define KineIndices in RDF"<<endl;
+//      for(const auto& type : types) {
+//         auto typeNames = utils::prependToAll(_inputNames, type);
+//         _reaction->setGroupParticles(type + names::KineIndices(), typeNames);
+// 	cout<<type + names::KineIndices()<<" "<<typeNames.size()<<endl;
 //       }
 
-//       //store index map for input particles
-//       size_t in_idx=0;
-//       CreateIndices(_nameInputIndex,_inputNames,in_idx);
+//       // Store input map
+//       size_t in_idx = 0;
+//       CreateIndices(_nameInputIndex, _inputNames, in_idx);
        
-//       // --- 3. Calculate Fixed Positions for ReactionMap ---
+//       // 3. Calculate Fixed Positions (ReactionMap)
+//       // We must construct the RVecIndexMap in the strict order of names::ParticleGroupOrder
+//       // enum: {Beams, Baryons, Mesons, ScatEle, Deps, Createds}
+      
 //       size_t idx = 0;
-//       // The position indices are calculated sequentially based on group sizes.
-//       Indices_t idxBeam=CreateIndices(_nameIndex,beam_names,idx);
-//       Indices_t idxBaryons =CreateIndices(_nameIndex,baryon_names,idx);
-//       Indices_t idxMesons = CreateIndices(_nameIndex,meson_names,idx);            
-//       Indices_t idxScat_ele = CreateIndices(_nameIndex,scat_names,idx);
-
-//       //now indices for particle which are required by created particles
-//       //this makes sure their indices are passed to KinematicProcessor and 4-vectors constructed
-//       Indices_t idxDeps = CreateIndices(_nameIndex,dep_names,idx);
-
-//       //Now create the indices for the created particles
-//       //in cases they exist in existing groups, they will keep that index
-//       //only particles not included in prior groups will get a new index
-//       Indices_t idxCreate = CreateIndices(_nameIndex,_p_names,idx);
-
-//       // Stores the fixed array index (0, 1, 2...) for each particle role in the consolidated array.
-//       // same ordering as reactionNames, ParticleGroupOrder
-//       // enum class names::ParticleGroupOrder{BeamIon, BeamEle, Baryons, Mesons, ScatEle, VirtGamma, Deps};
-//       RVecIndexMap retIndices{idxBeam, idxBaryons, idxMesons,
-// 			      idxScat_ele, idxDeps, idxCreate};
-//       //cout<<" RVecIndexMap retIndices "<<retIndices<<endl;
-//       //retIndices now specifies the fixed reaction map
-//       //Define it in RDF
-//       _mapIndices=retIndices;
-//       _reaction->Define(names::ReactionMap(),
-// 			[retIndices]() {
-// 			  return retIndices;
-// 			},
-// 			{});
       
-//       //Define index for each particle in components array
-//       for(const auto& particle:_nameIndex){
-// 	auto pindex  = particle.second;
-// 	//dont use setParticleIndex as want integer indices not Indices_t
-// 	//as kinematic components are in fixed order
-// 	_reaction->Define(names::data_type::Kine()+particle.first,[pindex](){return pindex;},{});
+//       // A. Beams
+//       Indices_t idxBeam = CreateIndices(_nameIndex, _beam_names, idx);
+      
+//       // B. Dynamic Groups (Baryons, Mesons, ScatEle)
+//       // We assume the user has registered these in the correct enum order, 
+//       // or we explicitly fetch them by enum ID.
+//       Indices_t idxBaryons = CreateIndices(_nameIndex, _reaction->getGroup(_topology_groups[names::OrderBaryons()]), idx);
+//       Indices_t idxMesons = CreateIndices(_nameIndex, _reaction->getGroup(_topology_groups[names::OrderMesons()]), idx);
+      
+//       // C. Scattered Electron (Optional)
+//       Indices_t idxScat_ele;
+//       if(_topology_groups.count(names::OrderScatEle())) {
+//           idxScat_ele = CreateIndices(_nameIndex, _reaction->getGroup(_topology_groups[names::OrderScatEle()]), idx);
 //       }
-//       //create conversion indices from input to reaction
+//       // If not defined, idxScat_ele remains empty {} which is correct.
+
+//       // D. Dependencies & Created
+//       Indices_t idxDeps = CreateIndices(_nameIndex, dep_names, idx);
+//       Indices_t idxCreate = CreateIndices(_nameIndex, _p_names, idx);
+
+//       // Build Map
+//       RVecIndexMap retIndices{idxBeam, idxBaryons, idxMesons, idxScat_ele, idxDeps, idxCreate};
+      
+//       _mapIndices = retIndices;
+//       _reaction->Define(names::ReactionMap(), [retIndices]() { return retIndices; }, {});
+      
+//       // Helper Columns
+//       cout<<" Helper Columns "<<endl;
+//       for(const auto& particle : _nameIndex) {
+//         _reaction->Define(names::data_type::Kine() + particle.first, [idx = particle.second](){ return idx; }, {});
+// 	cout<< names::data_type::Kine() + particle.first <<" "<<idx<<endl;
+//       }
+
+//       // Conversion Map
 //       _input2ReactionIndex.resize(_nameInputIndex.size());
-//       for(const auto& particle: _nameInputIndex){
-// 	cout<<"input2ReactionIndex "<<particle.first<<" "<<particle.second<<" "<<GetReactionIndex(particle.first)<<endl;
-// 	_input2ReactionIndex[particle.second]=GetReactionIndex(particle.first);
+//       for(const auto& particle : _nameInputIndex) {
+//         _input2ReactionIndex[particle.second] = GetReactionIndex(particle.first);
 //       }
       
-//       //Finally convert dependency names to RVecIndices of
-//       //different indice types for each created particle
+//       // 4. Resolve Dependencies
 //       for (size_t i = 0; i < GetNCreated(); ++i) {
-// 	RVecIndices vec_indices;
-// 	//get different types from structured dependency names vector
-// 	for(const auto& type_index:_p_stru_depends[i]){
-// 	  Indices_t indices;
-// 	  for(const auto& particle:type_index){
-// 	    indices.push_back(GetReactionIndex(particle));
-// 	  }
-// 	  vec_indices.push_back(indices);
-// 	}
-// 	_p_dep_indices.push_back(vec_indices);
-
-//       }
-
-//     }
-//     /**
-//      * @brief Executes all registered particle creation methods for the current combination.
-//      * * It iterates through the stored creation functions and applies the calculated 
-//      * momentum to the corresponding position in the component arrays.
-//      * * @param px, py, pz, m References to the component RVecs (modified in place).
-//      */
-//     void ParticleCreator::ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 
-// 		       ROOT::RVecD& pz, ROOT::RVecD& m) const {
-    
-//       // Loop through all registered creation methods and their dependencies.
-//       for (size_t i = 0; i < GetNCreated(); ++i) {
-        
-//         // 1. Get the creation function pointer.
-//         ParticleCreatorFunc_t func = _p_creators[i];
-        
-//         // 2. Get the target position (fixed array index) for this created particle.
-//         // The fixed index is found by looking up the particle name in the ReactionMap's structure.
-//         const std::string& created_name = _p_names[i];
-//         const int position = _nameIndex.at(created_name); // Get fixed position of this particle in Reaction
-//          // 3. Get the input particle names/roles required by this specific creator.
-//         const auto& indices= _p_dep_indices[i];
-
-// 	//	cout<<"ParticleCreator::ApplyCreation "<<position<<" "<<indices<<" "<<pz<<m<<endl;
-// 	// 5. Execute the creation function.
-//         // NOTE: The function requires the single, fixed position and the resolved indices.
-//         func(position, indices, px, py, pz, m);
+//         RVecIndices vec_indices;
+//         for(const auto& type_index : _p_stru_depends[i]) {
+//           Indices_t indices;
+//           for(const auto& particle : type_index) {
+//             indices.push_back(GetReactionIndex(particle));
+//           }
+//           vec_indices.push_back(indices);
+//         }
+//         _p_dep_indices.push_back(vec_indices);
 //       }
 //     }
 
-  
-  
-//   }//end config
-// }
+//     inline void ParticleCreator::ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, ROOT::RVecD& pz, ROOT::RVecD& m) const {
+//       for (size_t i = 0; i < GetNCreated(); ++i) {
+//         _p_creators[i](_nameIndex.at(_p_names[i]), _p_dep_indices[i], px, py, pz, m);
+//       }
+//     }
+
+//   } // end config
+// } // end rad

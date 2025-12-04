@@ -25,6 +25,11 @@ namespace rad {
     // -------------------------------------------------------------------
     template <typename ProcessorT>
     KineCalculation(ProcessorT& kine, std::string name, MapKernel func) {
+       // add suffix to name to distinguish calculations
+       // from different KinematicProcessors
+      // name+= kine.GetSuffix();
+       
+       //define with Lambda/functor
        kine.DefineKernel(name, func);
     }
 
@@ -44,7 +49,10 @@ namespace rad {
            }
            resolved_indices.push_back(idxs);
        }
-
+       // add suffix to name to distinguish calculations
+       // from different KinematicProcessors
+       // name+= kine.GetSuffix();
+       
        // 2. Capture and Adapt
        auto adapter_lambda = [resolved_indices, func](const RVecIndexMap&, 
                                                       const RVecResultType& px, const RVecResultType& py, 
@@ -54,6 +62,7 @@ namespace rad {
        };
 
        // 3. Register
+       //define with Lambda/functor
        kine.DefineKernel(name, adapter_lambda);
     }
 

@@ -401,6 +401,27 @@ namespace rad{
       }
       return global_max;
     }
+     /**
+     * @brief Variadic helper to pack multiple RVecs into a single RVec<RVec>.
+     * Called by RDataFrame via JIT string.
+     * * @tparam T The value type (e.g., double). All inputs must be RVec<T>.
+     * @tparam Args Variadic pack of RVec<T>.
+     */
+    template <typename T, typename... Args>
+    ROOT::RVec<ROOT::RVec<T>> PackColumns(const ROOT::RVec<T>& first, const Args&... args) {
+        // 1. Create result vector
+        // Size = 1 (first) + sizeof...(args)
+        ROOT::RVec<ROOT::RVec<T>> result;
+        result.reserve(1 + sizeof...(args));
+
+        // 2. Add first element
+        result.push_back(first);
+
+        // 3. Fold expression to push back the rest
+        (result.push_back(args), ...);
+
+        return result;
+    }
     
   }//helpers
   

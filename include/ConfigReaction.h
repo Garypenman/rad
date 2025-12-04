@@ -99,8 +99,7 @@ namespace rad {
         // Remove any columns with the DoNotWriteTag
         auto tag = DoNotWriteTag();
         cols.erase(std::remove_if(cols.begin(), cols.end(),
-				  [&tag](const string& col) -> bool { return col.find(tag) != std::string::npos; }),
-		   cols.end());
+				  [&tag](const string& col) -> bool { return col.find(tag) != std::string::npos; }),cols.end());
 
         // Call base class cleanup (though RDFInterface currently has no columns to remove)
         RDFInterface::RemoveSnapshotColumns(cols);
