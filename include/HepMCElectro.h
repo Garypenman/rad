@@ -30,11 +30,21 @@ namespace rad{
 
      void AliasMomentumComponents(){
       AddType(MC());
-      setBranchAlias("particles.momentum.m_v1",MC()+"px");
-      setBranchAlias("particles.momentum.m_v2",MC()+"py");
-      setBranchAlias("particles.momentum.m_v3",MC()+"pz");
-      setBranchAlias("particles.mass",MC()+"m");
-      setBranchAlias("particles.pid",MC()+"pid");
+      
+      ParticleInjector injector(this);
+      injector.DefineParticleInfo({"px", "py", "pz", "m", "pid"});
+    
+      injector.AddSource(MC(), 
+			 {"particles.momentum.m_v1","particles.momentum.m_v2","particles.momentum.m_v3","particles.mass","particles.pid"}); 
+      
+      
+      injector.CreateUnifiedVectors();
+      
+      // setBranchAlias("particles.momentum.m_v1",MC()+"px");
+      // setBranchAlias("particles.momentum.m_v2",MC()+"py");
+      // setBranchAlias("particles.momentum.m_v3",MC()+"pz");
+      //setBranchAlias("particles.mass",MC()+"m");
+      //setBranchAlias("particles.pid",MC()+"pid");
 
       DefineForAllTypes("phi", Form("rad::ThreeVectorPhi(components_p3)"));
       DefineForAllTypes("theta", Form("rad::ThreeVectorTheta(components_p3)"));

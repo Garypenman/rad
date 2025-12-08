@@ -13,6 +13,8 @@
 #include "BasicKinematics.h"
 #include "Beams.h"
 #include "CommonDefines.h"
+#include "ParticleInjector.h" 
+
 //#include "KinematicsProcessor.h"
 
 namespace rad{
