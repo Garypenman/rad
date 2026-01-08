@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAD | User Guide</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #334155; }
+    .rad-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 2rem; }
+    .code-block { background: #1e293b; color: #e2e8f0; padding: 1.5rem; border-radius: 0.75rem; font-family: 'Menlo', 'Monaco', monospace; overflow-x: auto; font-size: 0.9em; line-height: 1.6; white-space: pre; }
+    .keyword { color: #c678dd; } .type { color: #e5c07b; } .string { color: #98c379; } .comment { color: #7f848e; font-style: italic; } .func { color: #61afef; }
+    .section-title { font-size: 1.875rem; font-weight: 800; color: #0f172a; margin-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-top: 3rem; }
+    .step-number { background: #3b82f6; color: white; width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 9999px; font-weight: bold; margin-right: 0.75rem; }
+  </style>
+</head>
+<body class="p-4 sm:p-8 max-w-7xl mx-auto">
+
+  <nav class="flex justify-between items-center mb-12">
+    <div class="text-2xl font-bold text-slate-900">RAD <span class="font-normal text-slate-500">| User Guide</span></div>
+    <div class="space-x-4">
+      <a href="index.html" class="text-slate-600 hover:text-blue-600 font-medium">Home</a>
+      <a href="RAD_Developer_Guide.html" class="text-slate-600 hover:text-blue-600 font-medium">Developer Guide</a>
+    </div>
+  </nav>
+
+  <header class="text-center mb-16">
+    <h1 class="text-5xl font-extrabold text-slate-900 mb-4">Analysis Workflow</h1>
+    <p class="text-xl text-slate-600 max-w-3xl mx-auto">From raw ROOT trees to physics histograms.</p>
+  </header>
+
+  <section class="mb-12">
+    <div class="rad-card p-8 bg-blue-50 border-blue-200">
+        <h2 class="text-2xl font-bold text-blue-900 mb-4">The RAD Philosophy</h2>
+        <p class="mb-4 text-blue-800">In modern physics analysis, a single "Event" often contains multiple "Candidates". To study a reaction like <code>e p -> e' K+ X</code>, you must analyze <em>all valid combinations</em>.</p>
+        <ul class="list-disc pl-5 space-y-2 text-blue-800">
+            <li><strong>Define Candidates:</strong> You define what an "Electron" is (e.g., PID=11).</li>
+            <li><strong>Auto-Combinatorics:</strong> RAD automatically generates the Cartesian product of all candidates.</li>
+            <li><strong>Vectorized Physics:</strong> Calculations run on these combinations efficiently in a single pass.</li>
+        </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title"><span class="step-number">1</span>Setup & Beams</h2>
+    <p class="mb-4 text-lg">Initialize the reaction and define the colliding beams.</p>
+    <div class="code-block">
+<span class="comment">// 1. Initialize the Reaction (Data Source)</span>
+<span class="type">HepMCElectro</span> <span class="func">hepmc</span>(<span class="string">"hepmc3_tree"</span>, <span class="string">"data/output_*.root"</span>);
+
+<span class="comment">// 2. Register Data Tiers</span>
+hepmc.<span class="func">AddType</span>(rad::consts::data_type::Rec());   <span class="comment">// "rec_"</span>
+hepmc.<span class="func">AddType</span>(rad::consts::data_type::Truth()); <span class="comment">// "tru_"</span>
+
+<span class="comment">// 3. Prepare Data (Aliasing & Math)</span>
+hepmc.<span class="func">SetupMC</span>(); 
+
+<span class="comment">// 4. Define Beams (e.g. 10 GeV e- on 100 GeV p)</span>
+hepmc.<span class="func">setBeamElectron</span>(0, 0, -10);
+hepmc.<span class="func">setBeamIon</span>(0, 0, 100);
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title"><span class="step-number">2</span>Topology & Particles</h2>
+    <p class="mb-4 text-lg">Define the Final State. RAD uses <code>ParticleCreator</code> to map strings to data indices.</p>
+    <div class="code-block">
+<span class="type">KinematicsProcElectro</span> <span class="func">kine</span>(&hepmc, <span class="string">"rec_"</span>);
+
+<span class="comment">// --- A. Select Candidates (Filter Input Arrays) ---</span>
+<span class="comment">// "ele" = 1st, 2nd... instance of PID 11</span>
+hepmc.<span class="func">setParticleCandidates</span>(<span class="string">"ele"</span>, <span class="string">"rec_"</span>, rad::index::useNthOccurance(1, 11)); 
+hepmc.<span class="func">setParticleCandidates</span>(<span class="string">"pos"</span>, <span class="string">"rec_"</span>, rad::index::useNthOccurance(1, -11));
+hepmc.<span class="func">setParticleCandidates</span>(<span class="string">"p"</span>,   <span class="string">"rec_"</span>, rad::index::useNthOccurance(1, 2212));
+
+<span class="comment">// --- B. Create Composite Particles ---</span>
+<span class="comment">// J/psi -> e+ e- (Sum)</span>
+kine.<span class="func">Creator</span>().<span class="func">Sum</span>(<span class="string">"Jpsi"</span>, {{<span class="string">"ele"</span>}, {<span class="string">"pos"</span>}});
+
+<span class="comment">// Missing Neutron -> (Beam + Target) - (ScatEle + JPsi)</span>
+kine.<span class="func">Creator</span>().<span class="func">Diff</span>(<span class="string">"miss_n"</span>, {{<span class="string">"beam_ele"</span>, <span class="string">"tar_ion"</span>}, {<span class="string">"scat_ele"</span>, <span class="string">"Jpsi"</span>}});
+
+<span class="comment">// --- C. Grouping for Reaction Physics ---</span>
+<span class="comment">// Defines vertices for t-channel calculations (Meson/Baryon split)</span>
+hepmc.<span class="func">setBaryonParticles</span>({<span class="string">"p"</span>});
+hepmc.<span class="func">setMesonParticles</span>({<span class="string">"Jpsi"</span>});
+
+<span class="comment">// --- D. Initialize (Triggers Combinatorial Sort) ---</span>
+kine.<span class="func">Init</span>();
+    </div>
+  </section>
+
+  <section>
+    <h2 class="section-title"><span class="step-number">3</span>Physics Calculations</h2>
+    <div class="code-block">
+<span class="comment">// --- Standard Variables ---</span>
+kine.<span class="func">Q2</span>();          <span class="comment">// Creates "rec_Q2"</span>
+kine.<span class="func">CosThetaCM</span>();  <span class="comment">// Creates "rec_CosThetaCM"</span>
+
+<span class="comment">// --- Mass ---</span>
+kine.<span class="func">Mass</span>(<span class="string">"M_Jpsi"</span>, {<span class="string">"Jpsi"</span>}); 
+kine.<span class="func">Mass</span>(<span class="string">"MM_neutron"</span>, {<span class="string">"miss_n"</span>}); 
+
+<span class="comment">// --- Custom Physics Kernels ---</span>
+<span class="type">KineCalculation</span> <span class="func">t_prime</span>(kine, <span class="string">"t_prime"</span>, physics::TPrime);
+    </div>
+  </section>
+
+  <section class="mb-20">
+    <h2 class="section-title"><span class="step-number">4</span>Multiple Hypotheses (Linked)</h2>
+    <div class="rad-card p-6 border-yellow-300 bg-yellow-50">
+        <p class="mb-2 text-yellow-900 font-bold">The Power Move: InitLinked</p>
+        <p class="text-sm text-yellow-800">
+            Compare "Missing Mass" vs "Detected Mass" topologies simultaneously without re-running combinatorial sorting.
+        </p>
+    </div>
+    <div class="code-block">
+<span class="comment">// 1. Create a "Child" processor with suffix "_miss"</span>
+<span class="type">KinematicsProcElectro</span> <span class="func">kine_miss</span>(kine, <span class="string">"_miss"</span>);
+
+<span class="comment">// 2. Override the definition of the "Baryon" slot</span>
+<span class="comment">// Use the missing neutron instead of the detected proton</span>
+kine_miss.<span class="func">Creator</span>().<span class="func">OverrideGroup</span>(rad::consts::OrderBaryons(), {<span class="string">"miss_n"</span>});
+
+<span class="comment">// 3. Link (Skip sorting!)</span>
+kine_miss.<span class="func">InitLinked</span>(kine);
+
+<span class="comment">// 4. Calculate variables for this hypothesis ("rec_t_prime_miss")</span>
+<span class="type">KineCalculation</span> <span class="func">tp_miss</span>(kine_miss, <span class="string">"t_prime"</span>, physics::TPrime);
+    </div>
+  </section>
+
+</body>
+</html>

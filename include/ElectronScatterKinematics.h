@@ -6,538 +6,259 @@
 #include <algorithm> // For std::clamp
 
 namespace rad {
+  namespace physics {
 
-  // --- Structures ---
+    // --- Structures ---
 
-  /**
-   * @brief Result structure for scattering kinematics in the proton/ion rest frame.
-   */
-  struct ScatterInProtonRestResult {
-    double theta = 0;  ///< Scattering angle in the proton rest frame (radians).
-    double energy = 0; ///< Virtual photon energy in the proton rest frame (GeV).
-    double Q2 = 0;     ///< Momentum transfer squared (Q^2 > 0).
-  };
+    /**
+     * @brief Result structure for scattering kinematics in the proton/ion rest frame.
+     */
+    struct ScatterInProtonRestResult {
+      double theta = 0;  ///< Scattering angle in the proton rest frame (radians).
+      double energy = 0; ///< Virtual photon energy in the proton rest frame (GeV).
+      double Q2 = 0;     ///< Momentum transfer squared (Q^2 > 0).
+    };
 
-  /**
-   * @brief Result structure for decay angles.
-   */
-  struct DecayAngles_t {
-    double cosTheta = 0.; ///< Cosine of the decay angle (polar angle).
-    double phi = 0.;      ///< Azimuthal angle.
-  };
+    /**
+     * @brief Result structure for decay angles.
+     */
+    struct DecayAngles_t {
+      double cosTheta = 0.; ///< Cosine of the decay angle (polar angle).
+      double phi = 0.;      ///< Azimuthal angle.
+    };
 
-  // --- Core Kernels (Concrete Types) ---
+ 
 
-  // /**
-  //  * @brief Reconstructs the Virtual Photon 4-vector.
-  //  * Relies on the ParticleCreator having already defined the VirtGamma index.
-  //  * @param react The fixed ReactionMap.
-  //  * @param px, py, pz, m The consolidated momentum component vectors (RVec<double>).
-  //  * @return PxPyPzMVector The calculated 4-vector.
-  //  */
-  // inline PxPyPzMVector PhotoFourVector(const RVecIndexMap& react, 
-  //                                      const RVecResultType& px, const RVecResultType& py, 
-  //                                      const RVecResultType& pz, const RVecResultType& m) 
-  // {
-  //   return FourVector(react[names::OrderCreated()][names::OrderVirtGamma()], px, py, pz, m);
-  // }
-
-  /**
-   * @brief Calculates the squared four-momentum transfer, Q^2 = -q^2.
-   * @param react The fixed ReactionMap.
-   * @param px, py, pz, m The consolidated momentum component vectors.
-   * @return ResultType_t The Q^2 value (always positive).
-   */
-  inline ResultType_t ElS_Q2(const RVecIndexMap& react, 
-                             const RVecResultType& px, const RVecResultType& py, 
-                             const RVecResultType& pz, const RVecResultType& m) 
-  {
-    // Q^2 is defined as the negative invariant mass squared of the virtual photon.
-    auto phot = PhotoFourVector(react, px, py, pz, m);
-    return -phot.M2();
-  }
-
-  /**
-   * @brief Calculates the four-momentum of the initial state Center-of-Mass (CM) system.
-   * @param react The fixed ReactionMap.
-   * @param px, py, pz, m The consolidated momentum component vectors.
-   * @return PxPyPzMVector The CM four-momentum vector (P_ion + P_virtual_photon).
-   */
-  inline PxPyPzMVector CMVectorInitial(const RVecIndexMap& react, 
-                                       const RVecResultType& px, const RVecResultType& py, 
-                                       const RVecResultType& pz, const RVecResultType& m) 
-  {
-    // Assumes OrderBeams() [0] = ion, [1] = electron
-    // Assuming ion is at pos 0 in the beam group
-    auto ion = FourVector(react[names::OrderBeams()][names::OrderBeamIon()], px, py, pz, m); 
-    auto phot = PhotoFourVector(react, px, py, pz, m);
-
-    return ion + phot;
-  }
-
-  // --- Proton Rest Frame Kinematics ---
-
-  /**
-   * @brief Calculates key scattering kinematics in the rest frame of the proton/ion target.
-   * @param react The fixed ReactionMap.
-   * @param px, py, pz, m The consolidated momentum component vectors.
-   * @return ScatterInProtonRestResult {theta, energy, Q2} in the rest frame.
-   */
-  inline ScatterInProtonRestResult ScatterInProtonRest(const RVecIndexMap& react,
-                                                       const RVecResultType& px, const RVecResultType& py,
-                                                       const RVecResultType& pz, const RVecResultType& m) 
-  {
-    // Assumes necessary indices are defined in react
-    const auto pbeam = FourVector(react[names::OrderBeams()][names::OrderBeamIon()], px, py, pz, m);
-    const auto ebeam = FourVector(react[names::OrderBeams()][names::OrderBeamEle()], px, py, pz, m);
-    const auto scatele = FourVector(react[names::OrderScatEle()][0], px, py, pz, m);
-
-    // Boost frame: Target ion CM
-    const auto pboost = pbeam.BoostToCM();
-
-    // Boost momenta
-    const auto prbeam = boost(ebeam, pboost);
-    const auto prscat = boost(scatele, pboost);
-    const auto prgamstar = prbeam - prscat; // Virtual photon in proton rest frame
-
-    // Calculate scattering angle (theta)
-    const double num = prbeam.Vect().Dot(prscat.Vect());
-    const double denom = prbeam.Vect().R() * prscat.Vect().R();
-
-    double theta = constant::InvalidEntry<double>();
-
-    if (denom != 0.0) {
-      double ratio = num / denom;
-      ratio = std::clamp(ratio, -1.0, 1.0); // Ensure ratio is [-1, 1] for acos
-      theta = TMath::ACos(ratio);
+    /**
+     * @brief Calculates the squared four-momentum transfer, Q^2 = -q^2.
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ResultType_t The Q^2 value (always positive).
+     */
+    inline ResultType_t ElS_Q2(const RVecIndexMap& react, 
+			       const RVecResultType& px, const RVecResultType& py, 
+			       const RVecResultType& pz, const RVecResultType& m) 
+    {
+      // Q^2 is defined as the negative invariant mass squared of the virtual photon.
+      auto phot = PhotoFourVector(react, px, py, pz, m);
+      return -phot.M2();
     }
 
-    const double energy = prgamstar.E();
-    const double Q2 = -prgamstar.M2();
+    /**
+     * @brief Calculates the four-momentum of the initial state Center-of-Mass (CM) system.
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return PxPyPzMVector The CM four-momentum vector (P_ion + P_virtual_photon).
+     */
+    inline PxPyPzMVector CMVectorInitial(const RVecIndexMap& react, 
+					 const RVecResultType& px, const RVecResultType& py, 
+					 const RVecResultType& pz, const RVecResultType& m) 
+    {
+      // Assumes OrderBeams() [0] = ion, [1] = electron
+      // Assuming ion is at pos 0 in the beam group
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
+      auto phot = PhotoFourVector(react, px, py, pz, m);
 
-    return {theta, energy, Q2};
-  }
+      return ion + phot;
+    }
 
-  /**
-   * @brief Calculates the polarization parameter (epsilon) for the virtual photon.
-   * @param react The fixed ReactionMap.
-   * @param px, py, pz, m The consolidated momentum component vectors.
-   * @return ResultType_t The polarization parameter (epsilon).
-   */
-  inline ResultType_t ElS_PolVirtPhot(const RVecIndexMap& react, 
-                                      const RVecResultType& px, const RVecResultType& py, 
-                                      const RVecResultType& pz, const RVecResultType& m) 
-  {
-    // Calculate necessary variables in the proton rest frame
-    const auto prvec = ScatterInProtonRest(react, px, py, pz, m);
+    // --- Proton Rest Frame Kinematics ---
 
-    // Renaming for clarity in calculation
-    const auto ElScatTh = prvec.theta;
-    const auto GammaE = prvec.energy;
-    const auto Q2 = prvec.Q2;
+    /**
+     * @brief Calculates key scattering kinematics in the rest frame of the proton/ion target.
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ScatterInProtonRestResult {theta, energy, Q2} in the rest frame.
+     */
+    inline ScatterInProtonRestResult ScatterInProtonRest(const RVecIndexMap& react,
+							 const RVecResultType& px, const RVecResultType& py,
+							 const RVecResultType& pz, const RVecResultType& m) 
+    {
+      // Assumes necessary indices are defined in react
+      const auto pbeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m);
+      const auto ebeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, m);
+      const auto scatele = FourVector(react[consts::OrderScatEle()][0], px, py, pz, m);
 
-    // Formula for virtual photon polarization (epsilon)
-    const auto pol = 1. / (1. + 2. * (1. + GammaE * GammaE / Q2) * TMath::Tan(ElScatTh / 2.) * TMath::Tan(ElScatTh / 2.));
+      // Boost frame: Target ion CM
+      const auto pboost = pbeam.BoostToCM();
 
-    return pol;
-  }
+      // Boost momenta
+      const auto prbeam = boost(ebeam, pboost);
+      const auto prscat = boost(scatele, pboost);
+      const auto prgamstar = prbeam - prscat; // Virtual photon in proton rest frame
 
-  // --- Decay Frame Kinematics (CM and Proton Rest) ---
+      // Calculate scattering angle (theta)
+      const double num = prbeam.Vect().Dot(prscat.Vect());
+      const double denom = prbeam.Vect().R() * prscat.Vect().R();
 
-  /**
-   * @brief Calculates decay angles in the Center-of-Mass (CM) frame of the electron-virtual photon system.
-   * This frame is defined using the electron beam and the virtual photon direction.
-   * @param react The fixed ReactionMap.
-   * @param px, py, pz, m The consolidated momentum component vectors.
-   * @return DecayAngles_t {CosTheta, Phi}.
-   */
-  inline DecayAngles_t ElectroCMDecay(const RVecIndexMap& react, 
-                                      const RVecResultType& px, const RVecResultType& py, 
-                                      const RVecResultType& pz, const RVecResultType& m) 
-  {
-    auto cm = CMVectorInitial(react, px, py, pz, m);
-    auto cmBoost = cm.BoostToCM();
+      double theta = consts::InvalidEntry<double>();
 
-    // Get relevant particles
-    auto beam = FourVector(react[names::OrderBeams()][names::OrderBeamEle()], px, py, pz, m);
-    auto mes = FourVector(react[names::OrderMesons()], px, py, pz, m); // Assumes single particle or combined meson vector
-    auto photon = PhotoFourVector(react, px, py, pz, m);
+      if (denom != 0.0) {
+	double ratio = num / denom;
+	ratio = std::clamp(ratio, -1.0, 1.0); // Ensure ratio is [-1, 1] for acos
+	theta = TMath::ACos(ratio);
+      }
 
-    // Boost to CM frame
-    PxPyPzMVector CMBeam = boost(beam, cmBoost);
-    PxPyPzMVector CMMes = boost(mes, cmBoost);
-    PxPyPzMVector CMGamma = boost(photon, cmBoost);
+      const double energy = prgamstar.E();
+      const double Q2 = -prgamstar.M2();
 
-    // Define Helicity Coordinate System (z-axis along virtual photon)
-    XYZVector zV = CMGamma.Vect().Unit();
-    XYZVector yV = CMGamma.Vect().Cross(CMBeam.Vect()).Unit();
-    XYZVector xV = yV.Cross(zV).Unit();
+      return {theta, energy, Q2};
+    }
 
-    // Project meson decay vector onto the coordinate axes
-    XYZVector angles(CMMes.Vect().Dot(xV), CMMes.Vect().Dot(yV), CMMes.Vect().Dot(zV));
+    /**
+     * @brief Calculates the polarization parameter (epsilon) for the virtual photon.
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ResultType_t The polarization parameter (epsilon).
+     */
+    inline ResultType_t ElS_PolVirtPhot(const RVecIndexMap& react, 
+					const RVecResultType& px, const RVecResultType& py, 
+					const RVecResultType& pz, const RVecResultType& m) 
+    {
+      // Calculate necessary variables in the proton rest frame
+      const auto prvec = ScatterInProtonRest(react, px, py, pz, m);
 
-    DecayAngles_t result;
-    // Cos(theta) is projection onto z-axis (magnitude of z-component)
-    result.cosTheta = TMath::Cos(angles.Theta());
-    result.phi = angles.Phi();
+      // Renaming for clarity in calculation
+      const auto ElScatTh = prvec.theta;
+      const auto GammaE = prvec.energy;
+      const auto Q2 = prvec.Q2;
 
-    return result;
-  }
+      // Formula for virtual photon polarization (epsilon)
+      const auto pol = 1. / (1. + 2. * (1. + GammaE * GammaE / Q2) * TMath::Tan(ElScatTh / 2.) * TMath::Tan(ElScatTh / 2.));
 
-  /**
-   * @brief Calculates the decay angle Cos(Theta) in the CM frame.
-   * @param react, px, py, pz, m The inputs.
-   * @return ResultType_t Cosine of the polar decay angle.
-   */
-  inline ResultType_t ElS_CosThetaCM(const RVecIndexMap& react, 
-                                     const RVecResultType& px, const RVecResultType& py, 
-                                     const RVecResultType& pz, const RVecResultType& m) 
-  {
-    return ElectroCMDecay(react, px, py, pz, m).cosTheta;
-  }
+      return pol;
+    }
 
-  /**
-   * @brief Calculates the decay angle Phi in the CM frame.
-   * @param react, px, py, pz, m The inputs.
-   * @return ResultType_t Azimuthal decay angle (Phi).
-   */
-  inline ResultType_t ElS_PhiCM(const RVecIndexMap& react, 
-                                const RVecResultType& px, const RVecResultType& py, 
-                                const RVecResultType& pz, const RVecResultType& m) 
-  {
-    return ElectroCMDecay(react, px, py, pz, m).phi;
-  }
+    // --- Decay Frame Kinematics (CM and Proton Rest) ---
 
-  /**
-   * @brief Calculates decay angles in the rest frame of the produced baryon (Proton Rest Frame).
-   * This frame is defined using the initial proton beam direction.
-   * @param react The fixed ReactionMap.
-   * @param px, py, pz, m The consolidated momentum component vectors.
-   * @return DecayAngles_t {CosTheta, Phi}.
-   */
-  inline DecayAngles_t ElectroProtonRestDecay(const RVecIndexMap& react, 
-                                              const RVecResultType& px, const RVecResultType& py, 
-                                              const RVecResultType& pz, const RVecResultType& m) 
-  {
-    // Boost frame: Initial proton rest frame
-    auto pr = FourVector(react[names::OrderBeams()][names::OrderBeamIon()], px, py, pz, m);
-    auto prBoost = pr.BoostToCM();
+    /**
+     * @brief Calculates decay angles in the Center-of-Mass (CM) frame of the electron-virtual photon system.
+     * This frame is defined using the electron beam and the virtual photon direction.
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return DecayAngles_t {CosTheta, Phi}.
+     */
+    inline DecayAngles_t ElectroCMDecay(const RVecIndexMap& react, 
+					const RVecResultType& px, const RVecResultType& py, 
+					const RVecResultType& pz, const RVecResultType& m) 
+    {
+      auto cm = CMVectorInitial(react, px, py, pz, m);
+      auto cmBoost = cm.BoostToCM();
 
-    // Get relevant particles
-    auto beam = FourVector(react[names::OrderBeams()][names::OrderBeamEle()], px, py, pz, m);
-    auto mes = FourVector(react[names::OrderMesons()], px, py, pz, m);
-    auto photon = PhotoFourVector(react, px, py, pz, m);
+      // Get relevant particles
+      auto beam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, m);
+      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, m); // Assumes single particle or combined meson vector
+      auto photon = PhotoFourVector(react, px, py, pz, m);
 
-    // Boost to Proton Rest Frame
-    PxPyPzMVector prBeam = boost(beam, prBoost);
-    PxPyPzMVector prMes = boost(mes, prBoost);
-    PxPyPzMVector prGamma = boost(photon, prBoost);
+      // Boost to CM frame
+      PxPyPzMVector CMBeam = boost(beam, cmBoost);
+      PxPyPzMVector CMMes = boost(mes, cmBoost);
+      PxPyPzMVector CMGamma = boost(photon, cmBoost);
 
-    // Define Helicity Coordinate System (z-axis opposite virtual photon, for convention)
-    XYZVector zV = -prGamma.Vect().Unit(); // Often defined opposite q*
-    XYZVector yV = prGamma.Vect().Cross(prBeam.Vect()).Unit();
-    XYZVector xV = yV.Cross(zV).Unit();
+      // Define Helicity Coordinate System (z-axis along virtual photon)
+      XYZVector zV = CMGamma.Vect().Unit();
+      XYZVector yV = CMGamma.Vect().Cross(CMBeam.Vect()).Unit();
+      XYZVector xV = yV.Cross(zV).Unit();
 
-    // Project meson decay vector onto the coordinate axes
-    XYZVector angles(prMes.Vect().Dot(xV), prMes.Vect().Dot(yV), prMes.Vect().Dot(zV));
+      // Project meson decay vector onto the coordinate axes
+      XYZVector angles(CMMes.Vect().Dot(xV), CMMes.Vect().Dot(yV), CMMes.Vect().Dot(zV));
 
-    DecayAngles_t result;
-    result.cosTheta = TMath::Cos(angles.Theta());
-    result.phi = angles.Phi();
+      DecayAngles_t result;
+      // Cos(theta) is projection onto z-axis (magnitude of z-component)
+      result.cosTheta = TMath::Cos(angles.Theta());
+      result.phi = angles.Phi();
 
-    return result;
-  }
+      return result;
+    }
 
-  /**
-   * @brief Calculates the decay angle Cos(Theta) in the Proton Rest frame.
-   * @param react, px, py, pz, m The inputs.
-   * @return ResultType_t Cosine of the polar decay angle.
-   */
-  inline ResultType_t ElS_CosThetaProtonRest(const RVecIndexMap& react, 
-                                             const RVecResultType& px, const RVecResultType& py, 
-                                             const RVecResultType& pz, const RVecResultType& m) 
-  {
-    return ElectroProtonRestDecay(react, px, py, pz, m).cosTheta;
-  }
+    /**
+     * @brief Calculates the decay angle Cos(Theta) in the CM frame.
+     * @param react, px, py, pz, m The inputs.
+     * @return ResultType_t Cosine of the polar decay angle.
+     */
+    inline ResultType_t ElS_CosThetaCM(const RVecIndexMap& react, 
+				       const RVecResultType& px, const RVecResultType& py, 
+				       const RVecResultType& pz, const RVecResultType& m) 
+    {
+      return ElectroCMDecay(react, px, py, pz, m).cosTheta;
+    }
 
-  /**
-   * @brief Calculates the decay angle Phi in the Proton Rest frame.
-   * @param react, px, py, pz, m The inputs.
-   * @return ResultType_t Azimuthal decay angle (Phi).
-   */
-  inline ResultType_t ElS_PhiProtonRest(const RVecIndexMap& react, 
-                                        const RVecResultType& px, const RVecResultType& py, 
-                                        const RVecResultType& pz, const RVecResultType& m) 
-  {
-    return ElectroProtonRestDecay(react, px, py, pz, m).phi;
-  }
+    /**
+     * @brief Calculates the decay angle Phi in the CM frame.
+     * @param react, px, py, pz, m The inputs.
+     * @return ResultType_t Azimuthal decay angle (Phi).
+     */
+    inline ResultType_t ElS_PhiCM(const RVecIndexMap& react, 
+				  const RVecResultType& px, const RVecResultType& py, 
+				  const RVecResultType& pz, const RVecResultType& m) 
+    {
+      return ElectroCMDecay(react, px, py, pz, m).phi;
+    }
 
+    /**
+     * @brief Calculates decay angles in the rest frame of the produced baryon (Proton Rest Frame).
+     * This frame is defined using the initial proton beam direction.
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return DecayAngles_t {CosTheta, Phi}.
+     */
+    inline DecayAngles_t ElectroProtonRestDecay(const RVecIndexMap& react, 
+						const RVecResultType& px, const RVecResultType& py, 
+						const RVecResultType& pz, const RVecResultType& m) 
+    {
+      // Boost frame: Initial proton rest frame
+      auto pr = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m);
+      auto prBoost = pr.BoostToCM();
+
+      // Get relevant particles
+      auto beam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, m);
+      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, m);
+      auto photon = PhotoFourVector(react, px, py, pz, m);
+
+      // Boost to Proton Rest Frame
+      PxPyPzMVector prBeam = boost(beam, prBoost);
+      PxPyPzMVector prMes = boost(mes, prBoost);
+      PxPyPzMVector prGamma = boost(photon, prBoost);
+
+      // Define Helicity Coordinate System (z-axis opposite virtual photon, for convention)
+      XYZVector zV = -prGamma.Vect().Unit(); // Often defined opposite q*
+      XYZVector yV = prGamma.Vect().Cross(prBeam.Vect()).Unit();
+      XYZVector xV = yV.Cross(zV).Unit();
+
+      // Project meson decay vector onto the coordinate axes
+      XYZVector angles(prMes.Vect().Dot(xV), prMes.Vect().Dot(yV), prMes.Vect().Dot(zV));
+
+      DecayAngles_t result;
+      result.cosTheta = TMath::Cos(angles.Theta());
+      result.phi = angles.Phi();
+
+      return result;
+    }
+
+    /**
+     * @brief Calculates the decay angle Cos(Theta) in the Proton Rest frame.
+     * @param react, px, py, pz, m The inputs.
+     * @return ResultType_t Cosine of the polar decay angle.
+     */
+    inline ResultType_t ElS_CosThetaProtonRest(const RVecIndexMap& react, 
+					       const RVecResultType& px, const RVecResultType& py, 
+					       const RVecResultType& pz, const RVecResultType& m) 
+    {
+      return ElectroProtonRestDecay(react, px, py, pz, m).cosTheta;
+    }
+
+    /**
+     * @brief Calculates the decay angle Phi in the Proton Rest frame.
+     * @param react, px, py, pz, m The inputs.
+     * @return ResultType_t Azimuthal decay angle (Phi).
+     */
+    inline ResultType_t ElS_PhiProtonRest(const RVecIndexMap& react, 
+					  const RVecResultType& px, const RVecResultType& py, 
+					  const RVecResultType& pz, const RVecResultType& m) 
+    {
+      return ElectroProtonRestDecay(react, px, py, pz, m).phi;
+    }
+
+  } // namespace physics
 } // namespace rad
-
-
-// #pragma once
-// #include "ReactionKinematics.h"
-// #include "TMath.h"
-// #include <algorithm> // For std::clamp
-
-// namespace rad {
- 
-//   // Note: Assuming PxPyPzMVector, XYZVector, ResultType_t, constant::InvalidEntry, 
-//   // PhotoFourVector, FourVector, boost, etc., are defined/accessible.
-
-//   // --- Structures ---
-
-//   /**
-//    * @brief Result structure for scattering kinematics in the proton/ion rest frame.
-//    */
-//   struct ScatterInProtonRestResult {
-//     double theta = 0 ; ///< Scattering angle in the proton rest frame (radians).
-//     double energy = 0; ///< Virtual photon energy in the proton rest frame (GeV).
-//     double Q2 = 0; ///< Momentum transfer squared (Q^2 > 0).
-//   };
-
-//   /**
-//    * @brief Result structure for decay angles.
-//    */
-//   struct DecayAngles_t {
-//     double cosTheta = 0.; ///< Cosine of the decay angle (polar angle).
-//     double phi = 0.; ///< Azimuthal angle.
-//   };
-
-//   // --- Q2 and CM Vector ---
-//   template<typename Tp, typename Tm>
-//   PxPyPzMVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m){
-//     return FourVector(react[names::OrderCreated()][names::OrderVirtGamma()],px,py,pz,m);
-    
-//   }
-//   /**
-//    * @brief Calculates the squared four-momentum transfer, Q^2 = -q^2.
-//    * @tparam Tp Type of momentum component RVecs.
-//    * @tparam Tm Type of mass component RVec.
-//    * @param react The fixed ReactionMap for particle index lookup.
-//    * @param px, py, pz, m The consolidated momentum component RVecs.
-//    * @return ResultType_t The Q^2 value (always positive).
-//    */
-//   template<typename Tp, typename Tm>
-//   inline ResultType_t ElS_Q2(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-//     // Q^2 is defined as the negative invariant mass squared of the virtual photon.
-//     auto phot = PhotoFourVector(react, px, py, pz, m);
-//     return -phot.M2();
-//   }
-  
- 
-//   /**
-//    * @brief Calculates the four-momentum of the initial state Center-of-Mass (CM) system.
-//    * @tparam Tp Type of momentum component RVecs.
-//    * @tparam Tm Type of mass component RVec.
-//    * @param react The fixed ReactionMap for particle index lookup.
-//    * @param px, py, pz, m The consolidated momentum component RVecs.
-//    * @return PxPyPzMVector The CM four-momentum vector (P_ion + P_virtual_photon).
-//    */
-//   template<typename Tp, typename Tm>
-//   inline PxPyPzMVector CMVectorInitial(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-
-//     // Assumes OrderBeams() [0] = ion, [1] = electron
-//     auto ion = FourVector(react[names::OrderBeams()][names::OrderBeamIon()], px, py, pz, m); // Assuming ion is at pos 0 in the beam group
-//     auto phot = PhotoFourVector(react, px, py, pz, m);
-        
-//     return ion + phot;
-//   }
-    
-//   // --- Proton Rest Frame Kinematics ---
-
-//   /**
-//    * @brief Calculates key scattering kinematics in the rest frame of the proton/ion target.
-//    * * @tparam Tp Type of momentum component RVecs.
-//    * @tparam Tm Type of mass component RVec.
-//    * @param react The fixed ReactionMap for particle index lookup.
-//    * @param px, py, pz, m The consolidated momentum component RVecs.
-//    * @return ScatterInProtonRestResult {theta, energy, Q2} in the rest frame.
-//    */
-//   template<typename Tp, typename Tm>
-//   inline ScatterInProtonRestResult ScatterInProtonRest(const RVecIndexMap& react,
-// 						       const Tp& px, const Tp& py,
-// 						       const Tp& pz, const Tm& m) {
-
-//     // Assumes necessary indices are defined in react
-//     const auto pbeam = FourVector(react[names::OrderBeams()][names::OrderBeamIon()], px, py, pz, m);
-//     const auto ebeam = FourVector(react[names::OrderBeams()][names::OrderBeamEle()], px, py, pz, m);
-//     const auto scatele = FourVector(react[names::OrderScatEle()][0], px, py, pz, m);
-    
-//     // Boost frame: Target ion CM
-//     const auto pboost = pbeam.BoostToCM();
-        
-//     // Boost momenta
-//     const auto prbeam = boost(ebeam, pboost);
-//     const auto prscat = boost(scatele, pboost);
-//     const auto prgamstar = prbeam - prscat; // Virtual photon in proton rest frame
-
-//     // Calculate scattering angle (theta)
-//     const double num = prbeam.Vect().Dot(prscat.Vect());
-//     const double denom = prbeam.Vect().R() * prscat.Vect().R();
-
-//     double theta = constant::InvalidEntry<double>();
-
-//     if (denom != 0.0) {
-//       double ratio = num / denom;
-//       ratio = std::clamp(ratio, -1.0, 1.0); // Ensure ratio is [-1, 1] for acos
-//       theta = TMath::ACos(ratio);
-//     }
-        
-//     const double energy = prgamstar.E();
-//     const double Q2 = -prgamstar.M2();
-
-//     return {theta, energy, Q2};
-//   }
-
-//   /**
-//    * @brief Calculates the polarization parameter (epsilon) for the virtual photon.
-//    * @tparam Tp Type of momentum component RVecs.
-//    * @tparam Tm Type of mass component RVec.
-//    * @param react The fixed ReactionMap for particle index lookup.
-//    * @param px, py, pz, m The consolidated momentum component RVecs.
-//    * @return ResultType_t The polarization parameter (epsilon).
-//    */
-//   template<typename Tp, typename Tm>
-//   inline ResultType_t ElS_PolVirtPhot(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-        
-//     // Calculate necessary variables in the proton rest frame
-//     const auto prvec = ScatterInProtonRest(react, px, py, pz, m);
-        
-//     // Renaming for clarity in calculation
-//     const auto ElScatTh = prvec.theta;
-//     const auto GammaE = prvec.energy;
-//     const auto Q2 = prvec.Q2;
-        
-//     // Formula for virtual photon polarization (epsilon)
-//     const auto pol = 1. / (1. + 2. * (1. + GammaE * GammaE / Q2) * TMath::Tan(ElScatTh / 2.) * TMath::Tan(ElScatTh / 2.));
-        
-//     return pol;
-//   }
-    
-//   // --- Decay Frame Kinematics (CM and Proton Rest) ---
-
-//   /**
-//    * @brief Calculates decay angles in the Center-of-Mass (CM) frame of the electron-virtual photon system.
-//    * * This frame is defined using the electron beam and the virtual photon direction.
-//    * @tparam Tp Type of momentum component RVecs.
-//    * @tparam Tm Type of mass component RVec.
-//    * @param react The fixed ReactionMap for particle index lookup.
-//    * @param px, py, pz, m The consolidated momentum component RVecs.
-//    * @return DecayAngles_t {CosTheta, Phi}.
-//    */
-//   template<typename Tp, typename Tm>
-//   inline DecayAngles_t ElectroCMDecay(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-
-//     auto cm = CMVectorInitial(react, px, py, pz, m);
-//     auto cmBoost = cm.BoostToCM();
-        
-//     // Get relevant particles
-//     auto beam = FourVector(react[names::OrderBeams()][names::OrderBeamEle()], px, py, pz, m);
-//     auto mes = FourVector(react[names::OrderMesons()], px, py, pz, m); // Assumes single particle or combined meson vector
-//     auto photon = PhotoFourVector(react, px, py, pz, m);
-        
-//     // Boost to CM frame
-//     PxPyPzMVector CMBeam = boost(beam, cmBoost);
-//     PxPyPzMVector CMMes = boost(mes, cmBoost);
-//     PxPyPzMVector CMGamma = boost(photon, cmBoost);
-        
-//     // Define Helicity Coordinate System (z-axis along virtual photon)
-//     XYZVector zV = CMGamma.Vect().Unit();
-//     XYZVector yV = CMGamma.Vect().Cross(CMBeam.Vect()).Unit();
-//     XYZVector xV = yV.Cross(zV).Unit();
-        
-//     // Project meson decay vector onto the coordinate axes
-//     XYZVector angles(CMMes.Vect().Dot(xV), CMMes.Vect().Dot(yV), CMMes.Vect().Dot(zV));
-        
-//     DecayAngles_t result;
-//     // Cos(theta) is projection onto z-axis (magnitude of z-component)
-//     result.cosTheta = TMath::Cos(angles.Theta()); 
-//     result.phi = angles.Phi();
-        
-//     return result;
-//   }
-    
-//   /**
-//    * @brief Calculates the decay angle Cos(Theta) in the CM frame.
-//    * @param react, px, py, pz, m As defined for ElectroCMDecay.
-//    * @return ResultType_t Cosine of the polar decay angle.
-//    */
-//   template<typename Tp, typename Tm>
-//   inline ResultType_t ElS_CosThetaCM(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-//     return ElectroCMDecay(react, px, py, pz, m).cosTheta;
-//   }
-    
-//   /**
-//    * @brief Calculates the decay angle Phi in the CM frame.
-//    * @param react, px, py, pz, m As defined for ElectroCMDecay.
-//    * @return ResultType_t Azimuthal decay angle (Phi).
-//    */
-//   template<typename Tp, typename Tm>
-//   inline ResultType_t ElS_PhiCM(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-//     return ElectroCMDecay(react, px, py, pz, m).phi;
-//   }
-    
-//   /**
-//    * @brief Calculates decay angles in the rest frame of the produced baryon (Proton Rest Frame).
-//    * * This frame is defined using the initial proton beam direction.
-//    * @tparam Tp Type of momentum component RVecs.
-//    * @tparam Tm Type of mass component RVec.
-//    * @param react The fixed ReactionMap for particle index lookup.
-//    * @param px, py, pz, m The consolidated momentum component RVecs.
-//    * @return DecayAngles_t {CosTheta, Phi}.
-//    */
-//   template<typename Tp, typename Tm>
-//   inline DecayAngles_t ElectroProtonRestDecay(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-        
-//     // Boost frame: Initial proton rest frame
-//     auto pr = FourVector(react[names::OrderBeams()][names::OrderBeamIon()], px, py, pz, m);
-//     auto prBoost = pr.BoostToCM();
-        
-//     // Get relevant particles
-//     auto beam = FourVector(react[names::OrderBeams()][names::OrderBeamEle()], px, py, pz, m);
-//     auto mes = FourVector(react[names::OrderMesons()], px, py, pz, m);
-//     auto photon = PhotoFourVector(react, px, py, pz, m);
-        
-//     // Boost to Proton Rest Frame
-//     PxPyPzMVector prBeam = boost(beam, prBoost);
-//     PxPyPzMVector prMes = boost(mes, prBoost);
-//     PxPyPzMVector prGamma = boost(photon, prBoost);
-        
-//     // Define Helicity Coordinate System (z-axis opposite virtual photon, for convention)
-//     XYZVector zV = -prGamma.Vect().Unit(); // Often defined opposite q*
-//     XYZVector yV = prGamma.Vect().Cross(prBeam.Vect()).Unit();
-//     XYZVector xV = yV.Cross(zV).Unit();
-        
-//     // Project meson decay vector onto the coordinate axes
-//     XYZVector angles(prMes.Vect().Dot(xV), prMes.Vect().Dot(yV), prMes.Vect().Dot(zV));
-        
-//     DecayAngles_t result;
-//     result.cosTheta = TMath::Cos(angles.Theta());
-//     result.phi = angles.Phi();
-        
-//     return result;
-//   }
-
-//   /**
-//    * @brief Calculates the decay angle Cos(Theta) in the Proton Rest frame.
-//    * @param react, px, py, pz, m As defined for ElectroProtonRestDecay.
-//    * @return ResultType_t Cosine of the polar decay angle.
-//    */
-//   template<typename Tp, typename Tm>
-//   inline ResultType_t ElS_CosThetaProtonRest(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-//     return ElectroProtonRestDecay(react, px, py, pz, m).cosTheta;
-//   }
-    
-//   /**
-//    * @brief Calculates the decay angle Phi in the Proton Rest frame.
-//    * @param react, px, py, pz, m As defined for ElectroProtonRestDecay.
-//    * @return ResultType_t Azimuthal decay angle (Phi).
-//    */
-//   template<typename Tp, typename Tm>
-//   inline ResultType_t ElS_PhiProtonRest(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-//     return ElectroProtonRestDecay(react, px, py, pz, m).phi;
-//   }
-
-// }
 

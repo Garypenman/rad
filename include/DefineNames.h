@@ -4,7 +4,7 @@
 //!  Helper functions for names of reaction parts
 
 namespace rad{
-  namespace names{
+  namespace consts{
     ///Comments not using string_view as need to return a string
     // returning static const seems to be slower, so stick with
     // returning string which should actually be slower 
@@ -97,30 +97,7 @@ namespace rad{
     const std::string  P3Components() {return "components_p3";}
    
 
-    /**
-     * Links to reaction component links for users c++ functions
-     */
-    // enum class InitGroup{Bot,Top}; //ordering below must match this
-    // enum class ElectroGroup{ BeamIon,BeamEle,ScatEle=4,VirtGam}; //4=>order in particleMap (after baryons and mesons)
-    // enum class PhotoGroup{ TarIon,BeamGam}; //ordering below must match this
-    // enum class FinalGroup{ Baryons=2,Mesons}; //ordering below must match this
-
-    
-    // constexpr uint  InitialTopIdx() {return static_cast<uint>(InitGroup::Top);}
-    // constexpr uint  InitialBotIdx() {return static_cast<uint>(InitGroup::Bot);}
-
-    // constexpr uint  ElectroIonIdx() {return InitialBotIdx();}
-    // constexpr uint  ElectroEleIdx() {return InitialTopIdx();}
-    
-    // constexpr uint  ScatEleIdx() {return static_cast<uint>(ElectroGroup::ScatEle);}
-    // constexpr uint  VirtGammaIdx() {return static_cast<uint>(ElectroGroup::VirtGam);}
-    
-    // constexpr uint  BaryonsIdx() {return static_cast<uint>(FinalGroup::Baryons);}
-    // constexpr uint  MesonsIdx() {return static_cast<uint>(FinalGroup::Mesons);}
-    
-    // constexpr uint  PhotoGammaIdx() {return InitialTopIdx();}
-    // constexpr uint  PhotoIonIdx() {return InitialBotIdx();}
-
+ 
     /**
      * Types of data
      */

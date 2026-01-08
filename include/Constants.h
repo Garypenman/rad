@@ -2,7 +2,7 @@
 #include <limits>
 
 namespace rad{
-  namespace constant{
+  namespace consts{
 
     /**
      * Useful physics

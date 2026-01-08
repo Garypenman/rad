@@ -22,149 +22,77 @@
 </head>
 <body class="text-slate-700">
   <div class="max-w-6xl mx-auto p-4 sm:p-8">
-    <!-- Header -->
     <header class="text-center mb-12">
       <h1 class="text-4xl font-bold text-slate-900 tracking-tight">RAD: Reaction Aware Dataframes</h1>
       <p class="mt-2 text-lg text-slate-600">Modern Particle &amp; Nuclear Physics Data Analysis with ROOT RDataFrame</p>
-      <a href="./reference/" target="_blank" class="inline-block mt-8 bg-[#ffd166] text-[#0a2540] font-semibold py-2 px-5 rounded-lg shadow hover:bg-[#ffb700] transition">View Full Class Reference (Doxygen)</a>
+      
+      <div class="mt-8 space-x-4">
+        <a href="RAD_User_Guide.html" class="inline-block bg-[#24406e] text-white font-semibold py-2 px-5 rounded-lg shadow hover:bg-[#1a3055] transition">Read User Guide</a>
+        <a href="RAD_Developer_Guide.html" class="inline-block bg-[#e2e8f0] text-[#0a2540] font-semibold py-2 px-5 rounded-lg shadow hover:bg-[#cbd5e1] transition">Developer Guide</a>
+        <a href="./reference/" target="_blank" class="inline-block bg-[#ffd166] text-[#0a2540] font-semibold py-2 px-5 rounded-lg shadow hover:bg-[#ffb700] transition">Doxygen Reference</a>
+      </div>
     </header>
 
-    <!-- Core Concepts -->
     <section class="mb-16">
       <h2 class="section-title text-center">Core Concepts</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="rad-card p-6">
           <h3 class="text-xl font-semibold mb-2 text-[#24406e]">Reaction Configuration</h3>
-          <p>RAD is built around the idea of configuring a physics reaction as a <span class="class-label">ConfigReaction</span> object, which manages the full analysis process.</p>
+          <p>RAD is built around the idea of configuring a physics reaction as a <span class="class-label">ConfigReaction</span> object.</p>
           <ul class="list-disc pl-5 mt-2 text-slate-600">
-            <li>Simplifies code for different final states and data formats (HepMC, ePIC, etc.)</li>
-            <li>Designed for ROOT RDataFrame, with header-only, runtime parsing</li>
-            <li>Automates MC matching, truth variable calculation, and combinatorial analysis</li>
-            <li>User code focuses on defining particles and analysis logic, not boilerplate</li>
+            <li>Simplifies code for complex final states (e.g. <code>e p -> e' K+ X</code>).</li>
+            <li>Handles multiple data types (HepMC, Podio, Flat Trees) uniformly.</li>
+            <li><strong>Auto-Combinatorics:</strong> Automatically generates and sorts all valid particle combinations.</li>
           </ul>
         </div>
         <div class="rad-card p-6">
           <h3 class="text-xl font-semibold mb-2 text-[#24406e]">Modular Utilities</h3>
-          <p>RAD provides a suite of utility classes and functions for:</p>
+          <p>RAD provides a suite of utility classes:</p>
           <ul class="list-disc pl-5 mt-2 text-slate-600">
-            <li>Particle creation (<span class="subclass-label">ParticleCreator</span>)</li>
-            <li>Kinematic calculations (<span class="subclass-label">BasicKinematics</span>, <span class="subclass-label">ReactionKinematicsRDF</span>)</li>
-            <li>Histogram management (<span class="subclass-label">Histogrammer</span>)</li>
-            <li>Random number generation (<span class="subclass-label">Random</span>)</li>
+            <li><span class="subclass-label">ParticleCreator</span>: Define particles and calculate Sums/Diffs.</li>
+            <li><span class="subclass-label">KinematicsProcessor</span>: The execution engine for physics loops.</li>
+            <li><span class="subclass-label">KineCalculation</span>: Wrap custom C++ physics functions.</li>
           </ul>
-          <p class="mt-2">These are composed with your <span class="class-label">ConfigReaction</span> object for flexible analysis workflows.</p>
         </div>
       </div>
     </section>
 
-    <!-- Class Structure & Workflow Diagram -->
     <section class="mb-16">
-      <h2 class="section-title text-center">Code Structure & Workflow</h2>
-      <div class="diagram-box">
-        <div class="diagram-title mb-2">Class Hierarchy & Usage Flow</div>
-        <div class="flex flex-col items-center">
-          <span class="class-label">ConfigReaction <span class="text-slate-500 text-sm">(abstract base)</span></span>
-          <span class="diagram-arrow">&#8595;</span>
-          <div class="flex flex-row flex-wrap gap-4 justify-center mb-2">
-            <div>
-              <span class="class-label">ElectroIonReaction</span>
-              <div class="diagram-arrow">&#8595;</div>
-              <div>
-                <span class="subclass-label">HepMCElectro</span>
-                <span class="text-xs text-slate-500 block">For MC generator analysis (HepMC3 data)</span>
-              </div>
-              <div>
-                <span class="subclass-label">ePICReaction</span>
-                <span class="text-xs text-slate-500 block">User-defined: for real experiments (ePIC, etc.)</span>
-              </div>
-            </div>
-            <div>
-              <span class="class-label">PhotoIonReaction</span>
-              <div class="diagram-arrow">&#8595;</div>
-              <div>
-                <span class="subclass-label">HepMCPhoto</span>
-                <span class="text-xs text-slate-500 block">MC generator analysis (photoproduction)</span>
-              </div>
-              <div>
-                <span class="subclass-label">[YourExperimentPhoto]</span>
-                <span class="text-xs text-slate-500 block">User-defined: for real experiments</span>
-              </div>
-            </div>
-          </div>
-          <span class="diagram-arrow">&#8595;</span>
-          <span class="subclass-label">ParticleCreator, Histogrammer, Utilities</span>
-          <span class="text-xs text-slate-500 text-center">Composition: instantiated and used with your reaction object</span>
-        </div>
-        <div class="note mt-4">
-          <strong>Note:</strong> For new analyses, subclass <span class="class-label">ElectroIonReaction</span> or <span class="class-label">PhotoIonReaction</span> to match your experiment and data format. Use <span class="subclass-label">ParticleCreator</span> to define particles, and <span class="subclass-label">Histogrammer</span> to manage histograms.
-        </div>
-      </div>
-      <div class="diagram-box">
-        <div class="diagram-title mb-2">Typical Analysis Workflow</div>
-        <ul class="list-decimal pl-6 text-slate-700">
-          <li><b>Choose reaction type</b>: Subclass <span class="class-label">ElectroIonReaction</span> or <span class="class-label">PhotoIonReaction</span> (e.g. <span class="subclass-label">HepMCElectro</span> for MC, or your experiment's class)</li>
-          <li><b>Configure particles</b>: Use <span class="subclass-label">ParticleCreator</span> to assign indices and build composite particles</li>
-          <li><b>Define analysis steps</b>: Kinematics, selection, truth-matching, etc. (using utilities)</li>
-          <li><b>Histogram management</b>: Instantiate <span class="subclass-label">Histogrammer</span> with your reaction object, configure histograms and splits</li>
-          <li><b>Run analysis</b>: Execute interactively through ROOT (typically <code>root example.C</code>)</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- Example Usage Section -->
-    <section class="mb-16">
-      <h2 class="section-title text-center">Example Usage: ProcessHepMCY.C</h2>
+      <h2 class="section-title text-center">Example Usage</h2>
       <div class="rad-card p-6">
-        <pre><code>// Setup for MC generator data (HepMC3)
+        <pre><code class="language-cpp">
+// Setup for MC generator data (HepMC3)
 #include "HepMCElectro.h"
-#include "ParticleCreator.h"
-#include "Indicing.h"
-#include "Histogrammer.h"
-#include "BasicKinematicsRDF.h"
-#include "ReactionKinematicsRDF.h"
-#include "ElectronScatterKinematicsRDF.h"
-#include <TBenchmark.h>
-#include <TCanvas.h>
+#include "KinematicsProcElectro.h"
 
-void ProcessHepMCY() {
-  using namespace rad::names::data_type; // For MC(), Rec(), Truth() types
-  ROOT::EnableImplicitMT(4);
+void ProcessHepMCZCombi() {
+  // 1. Create interface to the ROOT file
+  rad::HepMCElectro hepmc{"hepmc3_tree", "data_file.root"};
+  hepmc.SetupMC(); // Maps branches to standard columns
 
-  // 1. Create reaction object for HepMC3 MC data
-  rad::config::HepMCElectro hepmc{"hepmc3_tree", "data_file.root"};
-  hepmc.AliasMomentumComponents();
+  // 2. Define Topology (The Basis)
+  hepmc.setBeamElectron(0, 0, -10); // 10 GeV e-
+  hepmc.setParticleCandidates("ele", "rec_", rad::index::useNthOccurance(1, 11));
+  
+  // 3. Initialize Kinematics Processor
+  rad::KinematicsProcElectro kine(&hepmc, "rec_");
+  
+  // Define Composite Particles (J/psi -> e+ e-)
+  kine.Creator().Sum("Jpsi", {{"ele"}, {"pos"}});
+  kine.Init(); // Triggers Combinatorial Sort
 
-  // 2. Define particles (using ParticleCreator)
-  rad::config::ParticleCreator particles{hepmc};
-  // Assign indices, build composite particles...
+  // 4. Calculate Physics
+  kine.Q2(); // Standard variable
+  kine.Mass("M_Jpsi", {"Jpsi"}); // Invariant Mass
 
-  // 3. Create and draw histograms (using Histogrammer)
-  rad::histo::Histogrammer histo{hepmc};
-  // Configure histograms, draw with histo.DrawSame("Q2",gPad);
-
-  // 4. Process and analyze event data...
+  // 5. Snapshot results
+  hepmc.Snapshot("output.root");
 }
-// Run with: root examples/ProcessHepMCY.C
         </code></pre>
-        <p class="mt-4 text-slate-600">This workflow is typical for both MC generator and real experimental data (just swap the reaction class for your experiment).</p>
+        <p class="mt-4 text-slate-600 text-center">Standard workflow for combinatorial analysis.</p>
       </div>
     </section>
 
-    <!-- Build & Usage Section -->
-    <section class="mb-16">
-      <h2 class="section-title text-center">Build & Usage</h2>
-      <div class="rad-card p-6">
-        <h3 class="text-lg font-semibold text-[#24406e] mb-2">Quick Install</h3>
-        <pre class="bg-slate-800 text-white p-4 rounded text-sm overflow-x-auto"><code>git clone https://github.com/dglazier/rad
-export ROOT_INCLUDE_PATH=/path/to/rad/include:$ROOT_INCLUDE_PATH</code></pre>
-
-        <h3 class="text-lg font-semibold text-[#24406e] mt-6 mb-2">Interactive Analysis</h3>
-        <pre class="bg-slate-800 text-white p-4 rounded text-sm overflow-x-auto"><code>root examples/ProcessHepMCY.C</code></pre>
-        <p class="mt-2 text-slate-600">No build required (header-only). Analysis is performed interactively in ROOT using C++ scripts.</p>
-      </div>
-    </section>
-
-    <!-- Footer -->
     <footer class="text-center p-8 border-t border-slate-200 mt-12">
       <p class="text-slate-500">RAD: Reaction Aware Dataframes &mdash; Modern Particle &amp; Nuclear Physics Analysis</p>
       <p class="text-slate-400 text-sm mt-2">Project by <a href="https://github.com/dglazier/rad" class="underline">dglazier</a> &amp; collaborators</p>

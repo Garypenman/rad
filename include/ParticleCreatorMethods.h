@@ -3,35 +3,37 @@
 
 namespace rad{
 
-  ///Create a particle as the diffence between ipos particles and ineg
-    inline void ParticleCreateByDiff(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &m) {//,const RVecI& iafter){
+  /**
+   * @brief Creates a particle by Difference (P_new = P_pos - P_neg).
+   * @param position The index in the arrays where the new particle will be stored.
+   * @param indices [0] = Indices to Add, [1] = Indices to Subtract.
+   */
+  inline void ParticleCreateByDiff(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &m) {
       const auto& ipos = indices[0];
       const auto& ineg = indices[1];
       
-      //sum the postive 4-vectors
       auto p4 = FourVector(ipos,px,py,pz,m);
-      //subtract the negative 4-vectors
       SubtractFourVector(p4,ineg,px,py,pz,m);
-      px[position] =p4.X();
-      py[position] =p4.Y();
-      pz[position] =p4.Z();
-      m[position] =p4.M();
-    }
+      
+      px[position] = p4.X();
+      py[position] = p4.Y();
+      pz[position] = p4.Z();
+      m[position]  = p4.M();
+  }
 
-  ///Create a particle as the sum of ipos particles
-    inline void ParticleCreateBySum(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &m) {//,const RVecI& iafter){
+  /**
+   * @brief Creates a particle by Summing (P_new = Sum P_i).
+   * @param position The index in the arrays where the new particle will be stored.
+   * @param indices [0] = Indices to Add.
+   */
+  inline void ParticleCreateBySum(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &m) {
       const auto& ipos = indices[0];
       
-      //sum the postive 4-vectors
       auto p4 = FourVector(ipos,px,py,pz,m);
 
-      px[position] =p4.X();
-      py[position] =p4.Y();
-      pz[position] =p4.Z();
-      m[position] =p4.M();
-    }
-
-
-
-
+      px[position] = p4.X();
+      py[position] = p4.Y();
+      pz[position] = p4.Z();
+      m[position]  = p4.M();
+  }
 }

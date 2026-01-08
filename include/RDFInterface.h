@@ -3,181 +3,106 @@
 #include <ROOT/RDFHelpers.hxx>
 #include <ROOT/RDataFrame.hxx>
 #include <ROOT/RVec.hxx>
-
-// Forward declaration of utility functions, if needed
-// using rad::names::data_type::Rec; 
-// using rad::names::data_type::Tru;
+#include <vector>
+#include <string>
+#include <map>
+#include <functional>
+#include <stdexcept>
+#include <iostream>
 
 namespace rad {
-  namespace config {
 
     using ROOT::RVecI;
     using RDFstep = ROOT::RDF::RNode;
     using std::string;
     using std::string_view;
 
-    // Helper to convert string_view to string for RDataFrame
-    std::string as_string(std::string_view v) { 
+    // --- Helpers ---
+    inline std::string as_string(std::string_view v) { 
       return {v.data(), v.size()}; 
     }
 
-    //string to append to columns to stop them being snapshotted
-    const std::string DoNotWriteTag(){return "__dnwtag";};
+    inline const std::string DoNotWriteTag(){ return "__dnwtag"; };
 
-    //---------------------------------------------------------
+    // =========================================================================
     // RDataFrame Interface Base Class
-    //---------------------------------------------------------
+    // =========================================================================
 
+    /**
+     * @class RDFInterface
+     * @brief A stateful wrapper around ROOT::RDataFrame.
+     * * @details
+     * This class manages the chain of RDataFrame operations. Unlike raw RDataFrame, which 
+     * returns a new node for every operation, RDFInterface maintains the state of the 
+     * "Current Frame" (_curr_df).
+     */
     class RDFInterface {
 
     public:
-      // Constructors
-      RDFInterface(const string_view treeName, const string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns) 
-	: _orig_df{treeName, {fileNameGlob.data()}, columns}, _curr_df{_orig_df}, _base_df{_orig_df}, _treeName{as_string(treeName)}, _fileName{as_string(fileNameGlob)} {
-	if (fileNameGlob.empty()) {
-	  throw std::invalid_argument("RDFInterface: fileNameGlob cannot be empty.");
-	}
-	_orig_col_names = _orig_df.GetColumnNames();
-      }
+      // --- Constructors & Destructor ---
+      RDFInterface(const string_view treeName, const string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns);
+      RDFInterface(const string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns);
+      RDFInterface(ROOT::RDataFrame rdf);
+      
+      virtual ~RDFInterface();
 
-      RDFInterface(const string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns) 
-	: _orig_df{treeName, filenames, columns}, _curr_df{_orig_df}, _base_df{_orig_df}, _treeName{as_string(treeName)}, _fileNames{filenames} {
-	if (filenames.empty()) {
-	  throw std::invalid_argument("RDFInterface: filenames list cannot be empty.");
-	}
-	_orig_col_names = _orig_df.GetColumnNames();
-      }
+      // --- State Management ---
+      RDFstep CurrFrame();
+      void setCurrFrame(RDFstep df);
+      
+      RDFstep getBaseFrame() const;
+      void setBaseFrame(RDFstep step);
+      void setMyBaseFrame();
+      
+      RDFstep getOrigFrame() const;
 
-      // if creating from alternative data source
-      RDFInterface(ROOT::RDataFrame rdf) : _orig_df{rdf}, _curr_df{rdf}, _base_df{rdf} {
-	_orig_col_names = _orig_df.GetColumnNames();
-      }
-
-      // Destructor handles lazy snapshots
-      virtual ~RDFInterface() { 
-	for (auto& trigger : _triggerSnapshots) {
-	  if (trigger) trigger();
-	}
-      }
-
-      //------------------ RDataFrame State Access ------------------
-
-      RDFstep CurrFrame() { return _curr_df; }
-      void setCurrFrame(RDFstep df) { _curr_df = df; }
-      RDFstep getBaseFrame() const { return _base_df; }
-      void setBaseFrame(RDFstep step) { _base_df = step; }
-      void setMyBaseFrame() { _base_df = CurrFrame(); }
-      RDFstep getOrigFrame() const { return _orig_df; }
-
-      //------------------ RDataFrame Actions ------------------
-        
-      // Define (string expression)
-      void Define(const string_view name, const string& expression) {
-	setCurrFrame(CurrFrame().Define(name, expression));
-      }
-        
-      // Define (lambda/functor)
+      // --- RDataFrame Actions (Define, Filter, Redefine) ---
+      
+      void Define(const string_view name, const string& expression);
+      
       template<typename Lambda>
-      void Define(const string_view name, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns) {
-	setCurrFrame(CurrFrame().Define(name, func, columns));
-      }
+      void Define(const string_view name, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns);
 
-      // Redefine (string expression)
-      void Redefine(const string& name, const string& expression) {
-	setCurrFrame(CurrFrame().Redefine(name, expression));
-      }
+      void Redefine(const string& name, const string& expression);
 
-      // Redefine (lambda/functor)
       template<typename Lambda>
-      void Redefine(const string& name, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns = {}) {
-	setCurrFrame(CurrFrame().Redefine(name, func, columns));
-      }
-	
-      /**
-       * Interface to RDataFrame Redefine via any aliases that may be used
-       */
-      //The redefine with alias does not work as the branchname
-      //is not a mathematical expression. This is not checked for
-      //the Lambda version below and works.
-      // void RedefineViaAlias(const string& alias,const string& expression){
-      // 	RedefineExpr(_aliasMap[alias],expression);
-      // }
+      void Redefine(const string& name, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns = {});
+    
       template<typename Lambda>
-      void RedefineViaAlias(const string& alias,Lambda&& func,const ROOT::RDF::ColumnNames_t& columns ){
-	//	Redefine(_aliasMap[alias],func,columns);
-	  
-	auto it = _aliasMap.find(alias);
-	if (it == _aliasMap.end()) {
-	  throw std::invalid_argument("RedefineViaAlias: alias '" + alias + "' does not exist in _aliasMap.");
-	}
-	Redefine(it->second, std::forward<Lambda>(func), columns);
-      }
+      void RedefineViaAlias(const string& alias, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns );
  
-      // Filter (string expression)
-      void Filter(const std::string& expression, const std::string& name = "") {
-	setCurrFrame(CurrFrame().Filter(expression, name));
-      }
+      void Filter(const std::string& expression, const std::string& name = "");
 
-      // Filter (lambda/functor)
       template<typename Lambda>
-      void Filter(Lambda&& func, const ROOT::RDF::ColumnNames_t& columns = {}, std::string name = "") {
-	setCurrFrame(CurrFrame().Filter(func, columns, name));
-      }
+      void Filter(Lambda&& func, const ROOT::RDF::ColumnNames_t& columns = {}, std::string name = "");
         
-      // Alias
-      //  virtual void setBranchAlias(const string& old_name, const string& new_name) = 0; // MUST be implemented by derived class
+      // --- Output & Snapshot ---
+      
+      virtual void Snapshot(const string& filename) = 0;
+      virtual void BookLazySnapshot(const string& filename) = 0;
+      virtual void RemoveSnapshotColumns(std::vector<string>& cols);
 
-      //------------------ Snapshot ------------------
-        
-      virtual void Snapshot(const string& filename) = 0; // MUST be implemented by derived class (to handle aliases/maps)
-      virtual void BookLazySnapshot(const string& filename) = 0; // MUST be implemented by derived class
+      // --- Metadata & Utilities ---
 
-      // Virtual hook for column cleanup before snapshot
-      virtual void RemoveSnapshotColumns(std::vector<string>& cols) {
-	// Only removes internal RDFInterface columns if any were introduced here.
-	// Derived class (ConfigReaction) will handle its own cleanup.
-      }
+      std::string GetTreeName() const;
+      std::string GetFileName() const;
+      std::vector<std::string> GetFileNames() const;
 
-      //------------------ Getters ------------------
+      bool OriginalColumnExists(const string& col);
+      bool ColumnExists(const string& col);
+    
+      void setBranchAlias(const string& old_name, const string& new_name);
+      bool CheckAlias(const string& alias);
+      const std::map<string,string>& AliasMap() const;
 
-      std::string GetTreeName() const { return _treeName; }
-      std::string GetFileName() const { return _fileName; }
-      std::vector<std::string> GetFileNames() const { return _fileNames; }
-      bool OriginalColumnExists(const string& col) {
-	return std::find(_orig_col_names.begin(), _orig_col_names.end(), col) != _orig_col_names.end();
-      }
-        
-      // Utility method used by ConfigReaction
-      bool ColumnExists(const string& col, RDFstep df) {
-	auto cols = df.GetDefinedColumnNames();
-	return std::find(cols.begin(), cols.end(), col) != cols.end();
-      }
-	
-      void setBranchAlias(const string& old_name, const string& new_name) {
-	if (!OriginalColumnExists(old_name)) {
-	  throw std::invalid_argument("setBranchAlias: Source column '" + old_name + "' does not exist in the DataFrame.");
-	}
-	_aliasMap[new_name] = old_name;
-	setCurrFrame(CurrFrame().Alias(new_name, old_name));
-      }
-      /**
-       * check if alias is used
-       */
-      bool CheckAlias(const string& alias){
-	if(_aliasMap.find(alias) != _aliasMap.end()) return true;
-	else return false;
-      }
-
-      const std::map<string,string>& AliasMap() const {return _aliasMap;}
-
-      string ColObjTypeString(const string& name){return CurrFrame().GetColumnType(name);}
-	
+      string ColObjTypeString(const string& name);
+    
     protected:
       ROOT::RDataFrame _orig_df;
       RDFstep _curr_df;
       RDFstep _base_df;
         
-      std::vector<std::function<void()>> _triggerSnapshots; // for BookLazySnapshot
+      std::vector<std::function<void()>> _triggerSnapshots;
         
       std::vector<std::string> _fileNames;
       std::string _fileName;
@@ -189,27 +114,146 @@ namespace rad {
     }; // class RDFInterface
 
 
-    //Helpers for column vector run-time type deduction
-    enum class ColType{Undef,Int,UInt,Float,Double,Short,Bool,Long};
-  
-     ColType DeduceColumnVectorType(RDFInterface* const radf,const string& name){
+    // =========================================================================
+    // Type Deduction Utilities
+    // =========================================================================
 
+    enum class ColType{ Undef, Int, UInt, Float, Double, Short, Bool, Long };
+  
+    inline ColType DeduceColumnVectorType(RDFInterface* const radf, const string& name){
       TString col_type = radf->ColObjTypeString(name);
        
-      if(col_type.Contains("UInt_t")||col_type.Contains("uint")) return ColType::UInt;
-      if(col_type.Contains("Float_t")||col_type.Contains("float")) return ColType::Float;
-      if(col_type.Contains("Double_t")||col_type.Contains("double")) return ColType::Double;
-      if(col_type.Contains("Short_t")||col_type.Contains("short")) return ColType::Short;
-      if(col_type.Contains("Bool_t")||col_type.Contains("bool")) return ColType::Bool;
-      if(col_type.Contains("Long_t")||col_type.Contains("long")) return ColType::Long;
-      if(col_type.Contains("Int_t")||col_type.Contains("int")) return ColType::Int;
+      if(col_type.Contains("UInt_t")  || col_type.Contains("uint"))   return ColType::UInt;
+      if(col_type.Contains("Float_t") || col_type.Contains("float"))  return ColType::Float;
+      if(col_type.Contains("Double_t")|| col_type.Contains("double")) return ColType::Double;
+      if(col_type.Contains("Short_t") || col_type.Contains("short"))  return ColType::Short;
+      if(col_type.Contains("Bool_t")  || col_type.Contains("bool"))   return ColType::Bool;
+      if(col_type.Contains("Long_t")  || col_type.Contains("long"))   return ColType::Long;
+      if(col_type.Contains("Int_t")   || col_type.Contains("int"))    return ColType::Int;
 
       throw std::runtime_error(std::string("RDFInterface : DeduceColumnVectorType cannot deduce a type for ") + 
-			       name + 
-			       " which is " + 
-			       col_type.Data()); 
+                   name + " which is " + col_type.Data()); 
       return ColType::Undef;
     }
+
+
+    // =========================================================================
+    // IMPLEMENTATION
+    // =========================================================================
+
+    // --- Constructors ---
+    inline RDFInterface::RDFInterface(const string_view treeName, const string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns) 
+    : _orig_df{treeName, {fileNameGlob.data()}, columns}, 
+          _curr_df{_orig_df}, 
+          _base_df{_orig_df}, 
+          _treeName{as_string(treeName)}, 
+          _fileName{as_string(fileNameGlob)} 
+    {
+      if (fileNameGlob.empty()) throw std::invalid_argument("RDFInterface: fileNameGlob cannot be empty.");
+      _orig_col_names = _orig_df.GetColumnNames();
+    }
+
+    inline RDFInterface::RDFInterface(const string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns) 
+    : _orig_df{treeName, filenames, columns}, 
+          _curr_df{_orig_df}, 
+          _base_df{_orig_df}, 
+          _treeName{as_string(treeName)}, 
+          _fileNames{filenames} 
+    {
+      if (filenames.empty()) throw std::invalid_argument("RDFInterface: filenames list cannot be empty.");
+      _orig_col_names = _orig_df.GetColumnNames();
+    }
+
+    inline RDFInterface::RDFInterface(ROOT::RDataFrame rdf) 
+          : _orig_df{rdf}, _curr_df{rdf}, _base_df{rdf} 
+    {
+      _orig_col_names = _orig_df.GetColumnNames();
+    }
+
+    inline RDFInterface::~RDFInterface() { 
+      for (auto& trigger : _triggerSnapshots) {
+        if (trigger) trigger();
+      }
+    }
+
+    // --- State Management ---
+    inline RDFstep RDFInterface::CurrFrame() { return _curr_df; }
+    inline void RDFInterface::setCurrFrame(RDFstep df) { _curr_df = df; }
+    
+    inline RDFstep RDFInterface::getBaseFrame() const { return _base_df; }
+    inline void RDFInterface::setBaseFrame(RDFstep step) { _base_df = step; }
+    inline void RDFInterface::setMyBaseFrame() { _base_df = CurrFrame(); }
+    inline RDFstep RDFInterface::getOrigFrame() const { return _orig_df; }
+
+    // --- Actions ---
+    inline void RDFInterface::Define(const string_view name, const string& expression) {
+        setCurrFrame(CurrFrame().Define(name, expression));
+    }
+        
+    template<typename Lambda>
+    inline void RDFInterface::Define(const string_view name, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns) {
+        setCurrFrame(CurrFrame().Define(name, func, columns));
+    }
+
+    inline void RDFInterface::Redefine(const string& name, const string& expression) {
+        setCurrFrame(CurrFrame().Redefine(name, expression));
+    }
+
+    template<typename Lambda>
+    inline void RDFInterface::Redefine(const string& name, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns) {
+        setCurrFrame(CurrFrame().Redefine(name, func, columns));
+    }
+    
+    template<typename Lambda>
+    inline void RDFInterface::RedefineViaAlias(const string& alias, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns ){
+        auto it = _aliasMap.find(alias);
+        if (it == _aliasMap.end()) {
+          throw std::invalid_argument("RedefineViaAlias: alias '" + alias + "' does not exist in _aliasMap.");
+        }
+        Redefine(it->second, std::forward<Lambda>(func), columns);
+    }
+ 
+    inline void RDFInterface::Filter(const std::string& expression, const std::string& name) {
+        setCurrFrame(CurrFrame().Filter(expression, name));
+    }
+
+    template<typename Lambda>
+    inline void RDFInterface::Filter(Lambda&& func, const ROOT::RDF::ColumnNames_t& columns, std::string name) {
+        setCurrFrame(CurrFrame().Filter(func, columns, name));
+    }
+
+    // --- Utilities ---
+    inline void RDFInterface::RemoveSnapshotColumns(std::vector<string>& cols) {
+        // Base implementation does nothing, but virtual for override
+    }
+
+    inline std::string RDFInterface::GetTreeName() const { return _treeName; }
+    inline std::string RDFInterface::GetFileName() const { return _fileName; }
+    inline std::vector<std::string> RDFInterface::GetFileNames() const { return _fileNames; }
+
+    inline bool RDFInterface::OriginalColumnExists(const string& col) {
+        return std::find(_orig_col_names.begin(), _orig_col_names.end(), col) != _orig_col_names.end();
+    }
+        
+    inline bool RDFInterface::ColumnExists(const string& col) {
+        auto cols = CurrFrame().GetColumnNames();
+        return std::find(cols.begin(), cols.end(), col) != cols.end();
+    }
+    
+    inline void RDFInterface::setBranchAlias(const string& old_name, const string& new_name) {
+        if (!OriginalColumnExists(old_name)) {
+          throw std::invalid_argument("setBranchAlias: Source column '" + old_name + "' does not exist.");
+        }
+        _aliasMap[new_name] = old_name;
+        setCurrFrame(CurrFrame().Alias(new_name, old_name));
+    }
+
+    inline bool RDFInterface::CheckAlias(const string& alias){
+        return _aliasMap.find(alias) != _aliasMap.end();
+    }
+
+    inline const std::map<string,string>& RDFInterface::AliasMap() const { return _aliasMap; }
+
+    inline string RDFInterface::ColObjTypeString(const string& name){ return CurrFrame().GetColumnType(name); }
   
-  } // namespace config
 } // namespace rad

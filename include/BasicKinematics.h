@@ -278,10 +278,10 @@ namespace rad {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
-    if (i0 < 0 || i1 < 0) return rad::constant::InvalidEntry<double>();
+    if (i0 < 0 || i1 < 0) return rad::consts::InvalidEntry<double>();
     auto p0 = XYZVector(x[i0], y[i0], z[i0]);
     auto p1 = XYZVector(x[i1], y[i1], z[i1]);
-    if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::constant::InvalidEntry<double>();
+    if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::consts::InvalidEntry<double>();
     
     return ROOT::Math::VectorUtil::DeltaPhi(p0, p1);
   }
@@ -302,10 +302,10 @@ namespace rad {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
-    if (i0 < 0 || i1 < 0) return rad::constant::InvalidEntry<double>();
+    if (i0 < 0 || i1 < 0) return rad::consts::InvalidEntry<double>();
     auto p0 = XYZVector(x[i0], y[i0], z[i0]);
     auto p1 = XYZVector(x[i1], y[i1], z[i1]);
-    if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::constant::InvalidEntry<double>();
+    if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::consts::InvalidEntry<double>();
     
     return TMath::ACos(ROOT::Math::VectorUtil::CosTheta(p0, p1));
   }
@@ -326,10 +326,10 @@ namespace rad {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
-    if (i0 < 0 || i1 < 0) return rad::constant::InvalidEntry<double>();
+    if (i0 < 0 || i1 < 0) return rad::consts::InvalidEntry<double>();
     auto p0 = XYZVector(x[i0], y[i0], z[i0]);
     auto p1 = XYZVector(x[i1], y[i1], z[i1]);
-    if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::constant::InvalidEntry<double>();
+    if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::consts::InvalidEntry<double>();
     
     return TMath::Sqrt( (p0 - p1).Mag2() );
   }

@@ -1,76 +1,87 @@
 #pragma once
 
-//!  Derived class to configure HepMC root files for electroproduction
-
-/*!
-  Use ConfigReaction classes to setup data analysis and calculations
-  for particular hadronic final states.
-  This derived class is configured for HepMC files with fixed particle order
-*/
 #include "ElectroIonReaction.h"
-
+#include "ParticleInjector.h" 
 
 namespace rad{
-  namespace config{
-   using rad::names::data_type::MC;
 
-    //! Class definition
+  using rad::consts::data_type::MC;
 
-    class HepMCElectro : public ElectroIonReaction {
+  /**
+   * @class HepMCElectro
+   * @brief HepMC3-specific configuration for Electro-Ion reactions.
+   * * This class handles the mapping of raw HepMC tree branches to standard framework components.
+   * It assumes a specific naming convention (e.g. `particles.momentum.m_v1`) common in HepMC3 ROOT files.
+   */
+  class HepMCElectro : public ElectroIonReaction {
+
+  public:
+    // --- Constructors ---
+    HepMCElectro(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t&  columns ={}) 
+      : ElectroIonReaction{treeName,fileNameGlob,columns} {}
+
+    HepMCElectro(const std::string_view treeName, const std::vector<std::string> &filenames, const ROOT::RDF::ColumnNames_t&  columns ={} ) 
+      : ElectroIonReaction{treeName,filenames,columns} {}
+
+    /**
+     * @brief Maps raw HepMC momentum branches to standard framework components.
+     * * Pipeline:
+     * 1. Registers the "MC" data type.
+     * 2. Configures `ParticleInjector` with standard suffixes.
+     * 3. Creates unified vectors (e.g., `mc_px`, `mc_phi`).
+     */
+    void SetupMC();
+
+    /**
+     * @brief Sets up aliases with additional filtering for stable particles.
+     * * In addition to `SetupMC`, defines `mc_final_pid` which masks out unstable particles
+     * (GenStatus != 1).
+     */
+    void DefineStableMomentumComponents();
+  };
 
 
-    public:
+  // =================================================================================
+  // IMPLEMENTATION
+  // =================================================================================
 
-    HepMCElectro(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t&  columns ={}) : ElectroIonReaction{treeName,fileNameGlob,columns} {
-	
-      }
-    HepMCElectro(const std::string_view treeName, const std::vector<std::string> &filenames, const ROOT::RDF::ColumnNames_t&  columns ={} ) : ElectroIonReaction{treeName,filenames,columns} {
-
-      }
-
-     void AliasMomentumComponents(){
+  inline void HepMCElectro::SetupMC(){
       AddType(MC());
       
       ParticleInjector injector(this);
+      
+      // Define the target standardized suffixes
       injector.DefineParticleInfo({"px", "py", "pz", "m", "pid"});
-    
+      
+      // Map the specific HepMC branches to these suffixes
       injector.AddSource(MC(), 
 			 {"particles.momentum.m_v1","particles.momentum.m_v2","particles.momentum.m_v3","particles.mass","particles.pid"}); 
       
-      
+      // Execute the aliasing/creation logic
       injector.CreateUnifiedVectors();
-      
-      // setBranchAlias("particles.momentum.m_v1",MC()+"px");
-      // setBranchAlias("particles.momentum.m_v2",MC()+"py");
-      // setBranchAlias("particles.momentum.m_v3",MC()+"pz");
-      //setBranchAlias("particles.mass",MC()+"m");
-      //setBranchAlias("particles.pid",MC()+"pid");
-
+ 
+      // Define standard kinematic variables for all types
       DefineForAllTypes("phi", Form("rad::ThreeVectorPhi(components_p3)"));
       DefineForAllTypes("theta", Form("rad::ThreeVectorTheta(components_p3)"));
       DefineForAllTypes("eta", Form("rad::ThreeVectorEta(components_p3)"));
       DefineForAllTypes("pmag", Form("rad::ThreeVectorMag(components_p3)"));
-      // DefineForAllTypes("pmag", Form("rad::ThreeVectorMag"),{},names::P3Components());
-
-      // setMyBaseFrame();
-     }
-
-     void AliasStableMomentumComponents(){
-       AliasMomentumComponents();
-       setBranchAlias("particles.status",MC()+"genStat");
-
-       Define(MC()+"final_pid",[](const ROOT::RVecI& pid,const ROOT::RVecI& stat){
-	 auto n = pid.size();
-	 auto final_pid = pid;
-	 final_pid*=(stat==1);
-	 // for(size_t i=0;i<n;++i){
-	 //   final_id[i]=pid[i]*(stat[i]==1);
-	 // }
-	 return final_pid;
-
-       },{MC()+"pid",MC()+"genStat"});//simID points from rec to tru
-
-     }
-     };
   }
+
+  inline void HepMCElectro::DefineStableMomentumComponents(){
+      SetupMC();
+       
+      // Map the status branch
+      setBranchAlias("particles.status",MC()+"genStat");
+
+      // Define 'final_pid' which retains PID only for stable particles (status == 1)
+      Define(MC()+"final_pid",[](const ROOT::RVecI& pid,const ROOT::RVecI& stat){
+	auto n = pid.size();
+	auto final_pid = pid;
+	// Vectorized masking: pid becomes 0 if stat != 1
+	final_pid*=(stat==1);
+	return final_pid;
+
+      },{MC()+"pid",MC()+"genStat"});
+  }
+
 }

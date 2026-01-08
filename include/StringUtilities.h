@@ -10,7 +10,8 @@
 
 
 namespace rad{
-  namespace utils{
+  namespace util{
+    
     using RVecS = ROOT::RVec<std::string>;
 
     /**
@@ -451,7 +452,7 @@ std::string toLower(std::string s) {
   
   /**
      * @brief Generates a JIT string to pack multiple RDataFrame columns into a single RVec<RVec>.
-     * * Example Output: "rad::utils::PackColumns(rec_px, rec_py, rec_pz)"
+     * * Example Output: "rad::util::PackColumns(rec_px, rec_py, rec_pz)"
      * * @param cols The list of column names to pack.
      * @return std::string The function call string.
      */
@@ -460,9 +461,42 @@ std::string toLower(std::string s) {
             return ""; // Should be handled by caller, but safe default
         }
         
-        // We use a variadic C++ helper function 'rad::utils::PackColumns'
+        // We use a variadic C++ helper function 'rad::util::PackColumns'
         // which must be available to the Cling JIT.
-        return createFunctionCallStringFromVec("rad::utils::PackColumns", cols);
+        return createFunctionCallStringFromVec("rad::util::PackColumns", cols);
+    }
+
+    // Helper to replace invalid chars (., :, etc.) with underscores
+    inline std::string MakeValidName(std::string s) {
+      std::replace(s.begin(), s.end(), '.', '_');
+      std::replace(s.begin(), s.end(), ':', '_');
+      std::replace(s.begin(), s.end(), '/', '_');
+      return s;
+    };
+    
+    //////////////////////////////////////////////////////////////////
+    std::string ColumnsToString(const ROOT::RDF::ColumnNames_t &cols) {
+      if(cols.empty()==true) return "{}";
+      
+      string toString ="{";
+      for(const auto& p:cols){
+	toString=(toString + p + ",");
+      }
+      toString.pop_back(); //remove last ,
+      toString+='}';
+      return toString;
+    }
+    //////////////////////////////////////////////////////////////////
+    std::string ColumnsToStringNoBraces(const ROOT::RDF::ColumnNames_t &cols) {
+      if(cols.empty()==true) return "";
+      
+      string toString ="";
+      for(const auto& p:cols){
+	toString=(toString + p + ",");
+      }
+      toString.pop_back(); //remove last ,
+       
+      return toString;
     }
   }
 }

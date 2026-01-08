@@ -1,152 +1,369 @@
 #pragma once
 
 #include "ConfigReaction.h"
-#include <string>
+#include "ReactionUtilities.h" // Ensures Concatenate<T> is available
+#include "StringUtilities.h"
+
+#include <map>
 #include <vector>
-#include <iostream>
+#include <string>
+#include <sstream>
 #include <stdexcept>
-#include <ROOT/RVec.hxx> // Ensure VecOps is available for Concatenate
 
 namespace rad {
-namespace config {
 
     /**
-     * @brief Configuration structure for a single source of particle data.
-     */
-    struct ParticleSource_t {
-      std::string name;                 ///< Unique name for this source (e.g., "Tracks").
-      ROOT::RDF::ColumnNames_t columns; ///< The input columns from the tree (e.g. "trk_px", "trk_py").
-      std::string filterExpr;           ///< Optional cut string (e.g., "trk_chi2 < 5.0").
-    };
-
-    /**
-     * @brief Aggregates particle data from multiple detector sources into unified arrays.
-     * * This class solves the problem where particle candidates are spread across multiple 
-     * branches (e.g. "Tracks" vs "CalorimeterClusters" vs "Neutrals"). It allows the user to:
-     * 1. Define a standard set of output columns (e.g., `rec_px`, `rec_py`).
-     * 2. Register multiple sources that map to these columns.
-     * 3. Apply source-specific filters (e.g. quality cuts) before merging.
-     * * The result is a set of unified RVec columns containing all valid particles, 
-     * ready for the combinatorial analysis.
+     * @class ParticleInjector
+     * @brief Manages the merging of disparate data sources into unified RDataFrame columns.
+     * * @details
+     * In many analyses, particle data comes from different branches or logic streams.
+     * For example, "Beams" might come from a fixed 4-vector, while "Tracks" come from 
+     * a reconstruction array. The KinematicsProcessor requires a single unified vector 
+     * (e.g., `rec_px`) where indices [0,1] are beams and [2...] are tracks.
+     * * This class allows you to:
+     * 1. Define the schema (types and names) of the data.
+     * 2. Add multiple sources (vectors of column names).
+     * 3. Automatically generate the RDataFrame code to merge them into a single vector.
      */
     class ParticleInjector {
     public:
-      
-      /**
-       * @brief Constructor.
-       * @param cr Pointer to the ConfigReaction object to define columns in.
-       */
-      explicit ParticleInjector(ConfigReaction* cr) : _reaction{cr} {}
-
-      /**
-       * @brief Defines the schema for the unified output vectors.
-       * * Example: `{"rec_px", "rec_py", "rec_pz", "rec_m"}`.
-       * All added sources must provide exactly this number of columns in this order.
-       * @param info List of column names to create.
-       */
-      void DefineParticleInfo(const ROOT::RDF::ColumnNames_t& info) {
-          _info = info;
-      }
-
-      /**
-       * @brief Adds a source of particles to be merged.
-       * * @param name A unique identifier for this source (used for internal column naming).
-       * @param cols List of input columns from the RDataFrame tree. Must match the size/order of DefineParticleInfo.
-       * @param filterExpr An optional RDataFrame expression string. Only particles satisfying this 
-       * condition (mask) will be included in the final merged list. If empty, all entries are taken.
-       * * @throws std::runtime_error If the column count does not match `DefineParticleInfo`.
-       */
-      void AddSource(const std::string& name, 
-                     const ROOT::RDF::ColumnNames_t& cols, 
-                     const std::string& filterExpr = "") 
-      {
-        if (cols.size() != _info.size()) {
-            throw std::runtime_error("ParticleInjector: Source '" + name + 
-                "' column count (" + std::to_string(cols.size()) + 
-                ") does not match ParticleInfo (" + std::to_string(_info.size()) + ").");
-        }
-        _sources.push_back({name, cols, filterExpr});
-      }
-
-      /**
-       * @brief Executes the definition logic in RDataFrame.
-       * * This method:
-       * 1. Iterates over all sources.
-       * 2. Creates filtered temporary columns if a filter expression was provided.
-       * 3. Defines the final Unified Columns (e.g. `rec_px`) by calling `Concatenate(...)` 
-       * on the (filtered) source columns.
-       */
-      void CreateUnifiedVectors() {
         
-        // 1. Process each source: Apply filters if necessary
-        for(auto& source : _sources) {
-            
-            // If a filter is provided, we must create new filtered columns
-            // so we don't merge rejected particles.
-            if(!source.filterExpr.empty()) {
-                std::string prefix = source.name + "_";
-                
-                // Define the mask column
-                std::string maskName = prefix + "mask" + config::DoNotWriteTag();
-                _reaction->Define(maskName, source.filterExpr);
-                
-                // Redefine source columns as filtered versions
-                // We update source.columns to point to these new "inj_..." names
-                ROOT::RDF::ColumnNames_t filtered_cols;
-                
-                for(const auto& col : source.columns) {
-                    std::string newCol = prefix + col; 
-                    
-                    // Define: newCol = col[mask]
-                    // We use a lambda to apply the boolean mask
-                    _reaction->Define(newCol, 
-                        [](const ROOT::RVecD& val, const ROOT::RVecI& mask) {
-                            return val[mask]; 
-                        }, {col, maskName});
-                        
-                    filtered_cols.push_back(newCol);
-                }
-                
-                // Update the source struct to point to the filtered data
-                source.columns = filtered_cols; 
-            }
-        }
-        // 2. Merge Sources into Unified Vectors
-        // For each info field (e.g. px, then py...), we concatenate all sources.
-        for(size_t i=0; i<_info.size(); ++i) {
+        /**
+         * @brief Construct a new Particle Injector.
+         * @param reaction Pointer to the ConfigReaction (interface to RDataFrame).
+         */
+        explicit ParticleInjector(ConfigReaction* reaction);
 
-	  //If only 1 source no need to concatentate
-	  if(_sources.size()==1){
-	    std::string oldName = _sources[0].columns[i];
-	    std::string newName = _sources[0].name + _info[i];
+        /**
+         * @brief Defines the structure and type of the particle data to be injected.
+         * * @details
+         * Parses strings to determine the C++ type and the variable name.
+         * Support multi-word types like "unsigned int" or "long long".
+         * Logic: The LAST word is the variable name; everything before it is the type.
+         * * @param columns List of definition strings.
+         * * **Examples:**
+         * - `{"double px", "double py", "int pid"}` -> Explicit types.
+         * - `{"unsigned int status"}` -> Multi-word type support.
+         * - `{"px", "py"}` -> Defaults to "double" if no type specified.
+         */
+        void DefineParticleInfo(const std::vector<std::string>& columns);
 
-	    cout<<"ParticleInjector::CreateUnifiedVectors() create column "<<newName<<" from "<<oldName<<endl; 
-	    _reaction->setBranchAlias(oldName, newName);
-	    continue;
- 	  }
+        /**
+         * @brief Adds a source of data to be merged into the unified vectors.
+         * * @details
+         * Registers a set of columns that correspond to the schema defined in DefineParticleInfo.
+         * It creates unique temporary aliases for these columns to prevent name collisions
+         * before the final merge.
+         * * @param prefix The target prefix for the final vector (e.g., "rec_" or "mc_").
+         * @param cols The list of existing RDataFrame column names to read from.
+         * Must match the size and order of DefineParticleInfo.
+         * @param filter Optional RDataFrame filter string (e.g., "genStatus==1").
+         * If provided, the column is read as `colName[filter]`.
+         * * @throws std::runtime_error if the number of columns doesn't match the schema.
+         */
+        void AddSource(const std::string& prefix, const std::vector<std::string>& cols, const std::string& filter = "");
 
-	  //Multiple sources so need to concatentate them
-	  // Build JIT string: "ROOT::VecOps::Concatenate(col1, col2, col3)"
-	  std::string expr = "ROOT::VecOps::Concatenate(";
-            
-            for(size_t k=0; k<_sources.size(); ++k) {
-                expr += _sources[k].columns[i];
-                if(k < _sources.size()-1) expr += ", ";
-            }
-            expr += ")";
-            
-            // Define the Unified Column (e.g. "rec_px")
-            // This implicitly handles type promotion (float -> double) if needed.
- 	    cout<<"ParticleInjector::CreateUnifiedVectors() create column "<<_info[i]<<" from "<<expr<<endl; 
-           _reaction->Define(_sources[0].name + _info[i], expr);
-        }
-      }
+        /**
+         * @brief Finalizes the injection by creating the unified vectors.
+         * * @details
+         * Iterates through all defined properties (px, py, pid...) and all registered sources.
+         * Constructs a JIT string for `rad::util::Concatenate<TYPE>(...)` and defines the
+         * final column (e.g., "rec_px").
+         * * Uses the type specified in DefineParticleInfo directly in the template parameter.
+         */
+        void CreateUnifiedVectors();
 
     private:
-      ConfigReaction* _reaction = nullptr;
-      ROOT::RDF::ColumnNames_t _info;       ///< Target column names (e.g. rec_px)
-      std::vector<ParticleSource_t> _sources; ///< Registered sources
+        ConfigReaction* _reaction;                      ///< Pointer to the reaction interface
+        std::vector<std::string> _colNames;             ///< Ordered list of variable names (e.g. px, py)
+        std::map<std::string, std::string> _colTypes;   ///< Map of variable name -> C++ type string
+        
+        // Nested Map Structure:
+        // Prefix (rec_) -> List of Sources -> List of Temporary Column Names
+        std::map<std::string, std::vector<std::vector<std::string>>> _sources;
     };
 
-} // namespace config
+    // =========================================================================
+    // IMPLEMENTATION
+    // =========================================================================
+
+    inline ParticleInjector::ParticleInjector(ConfigReaction* reaction) 
+        : _reaction(reaction) {}
+
+    inline void ParticleInjector::DefineParticleInfo(const std::vector<std::string>& columns) {
+        _colNames.clear();
+        _colTypes.clear();
+
+        for(const auto& entry : columns) {
+            std::stringstream ss(entry);
+            std::string segment;
+            std::vector<std::string> parts;
+            
+            // Split string by spaces, ignoring empty segments (handles multiple spaces)
+            while(std::getline(ss, segment, ' ')) {
+                if(!segment.empty()) parts.push_back(segment);
+            }
+
+            if(parts.size() >= 2) {
+                // Case 1: Explicit Type (e.g., "unsigned int pid")
+                // The name is always the last element
+                std::string name = parts.back();
+                
+                // Reassemble the type from all preceding elements
+                std::string type = "";
+                for(size_t i = 0; i < parts.size() - 1; ++i) {
+                    type += parts[i] + " ";
+                }
+                
+                // Remove trailing space from reassembly
+                if(!type.empty()) type.pop_back();
+
+                _colNames.push_back(name);
+                _colTypes[name] = type; 
+            } 
+            else if(parts.size() == 1) {
+                // Case 2: Name only (e.g., "px")
+                // Default to double for compatibility with standard ROOT physics vectors
+                _colNames.push_back(parts[0]);
+                _colTypes[parts[0]] = "double";
+            }
+        }
+    }
+
+    inline void ParticleInjector::AddSource(const std::string& prefix, const std::vector<std::string>& cols, const std::string& filter) {
+        if(cols.size() != _colNames.size()) {
+            throw std::runtime_error("ParticleInjector Error: Source column count mismatch. " 
+                                     "Expected " + std::to_string(_colNames.size()) + 
+                                     ", got " + std::to_string(cols.size()));
+        }
+        
+        // Generate a unique ID for this source to ensure temporary names don't collide.
+        // e.g. "rec_px_src0", "rec_px_src1"
+        std::string sourceID = "_src" + std::to_string(_sources[prefix].size()); 
+        std::vector<std::string> registeredCols;
+        
+        for(size_t i = 0; i < cols.size(); ++i) {
+            std::string tempName = prefix + _colNames[i] + sourceID;
+            std::string inputCol = cols[i];
+            
+            // Define the temporary column in RDataFrame
+            if(!filter.empty()) {
+                // Define filtered version: Define(tempName, "inputCol[filter]")
+                _reaction->Define(tempName, inputCol + "[" + filter + "]");
+            } else {
+                // Simple Alias: Define(tempName, inputCol)
+                // Note: We use Define (alias) to expose the column under the temporary name
+                _reaction->Define(tempName, inputCol); 
+            }
+            registeredCols.push_back(tempName);
+        }
+        
+        // Store the temporary names for the final merge step
+        _sources[prefix].push_back(registeredCols);
+    }
+
+    inline void ParticleInjector::CreateUnifiedVectors() {
+        for(auto& [prefix, sources] : _sources) {
+            
+            // Loop over each property (e.g., "px", then "py", then "pid")
+            for(size_t i = 0; i < _colNames.size(); ++i) {
+                std::string finalName = prefix + _colNames[i];
+                std::string type      = _colTypes[_colNames[i]];
+                
+                // Collect the temporary column names from all sources for this property
+                std::vector<std::string> colsToMerge;
+                for(const auto& src : sources) {
+                    colsToMerge.push_back(src[i]);
+                }
+                
+                // Convert vector of strings to comma-separated string: "col1, col2, col3"
+                std::string args = util::ColumnsToStringNoBraces(colsToMerge);
+
+                // DIRECT TEMPLATE INJECTION
+                // Generates code: rad::util::Concatenate< type >( col1, col2, ... )
+                // This relies on the JIT compiler to instantiate the correct template specialization.
+                std::string call = "rad::util::Concatenate<" + type + ">(" + args + ")";
+                
+                // Define the final unified column
+                _reaction->Define(finalName, call);
+            }
+        }
+    }
+
 } // namespace rad
+
+// #pragma once
+
+// #include "ConfigReaction.h"
+// #include "ReactionUtilities.h" // Ensures Concatenate<T> is available
+// #include "StringUtilities.h"
+// #include <map>
+// #include <vector>
+// #include <string>
+// #include <sstream>
+
+// namespace rad {
+
+//   /**
+//    * @class ParticleInjector
+//    * @brief Manages the merging of disparate data sources into unified RDataFrame columns.
+//    * * @details
+//    * In many analyses, particle data comes from different branches or logic streams.
+//    * For example, "Beams" might come from a fixed 4-vector, while "Tracks" come from 
+//    * a reconstruction array. The KinematicsProcessor requires a single unified vector 
+//    * (e.g., `rec_px`) where indices [0,1] are beams and [2...] are tracks.
+//    * * This class allows you to:
+//    * 1. Define the schema (types and names) of the data.
+//    * 2. Add multiple sources (vectors of column names).
+//    * 3. Automatically generate the RDataFrame code to merge them into a single vector.
+//    */
+//   class ParticleInjector {
+//   public:
+    
+//     /**
+//      * @brief Construct a new Particle Injector.
+//      * @param reaction Pointer to the ConfigReaction (interface to RDataFrame).
+//      */
+//     ParticleInjector(ConfigReaction* reaction) : _reaction(reaction) {}
+
+//     /**
+//      * @brief Defines the structure and type of the particle data to be injected.
+//      * * @details
+//      * Parses strings to determine the C++ type and the variable name.
+//      * Support multi-word types like "unsigned int" or "long long".
+//      * Logic: The LAST word is the variable name; everything before it is the type.
+//      * * @param columns List of definition strings.
+//      * * **Examples:**
+//      * - `{"double px", "double py", "int pid"}` -> Explicit types.
+//      * - `{"unsigned int status"}` -> Multi-word type support.
+//      * - `{"px", "py"}` -> Defaults to "double" if no type specified.
+//      */
+//     void DefineParticleInfo(const std::vector<std::string>& columns) {
+//         _colNames.clear();
+//         _colTypes.clear();
+
+//         for(const auto& entry : columns) {
+//             std::stringstream ss(entry);
+//             std::string segment;
+//             std::vector<std::string> parts;
+//             // Split string by spaces
+//             while(std::getline(ss, segment, ' ')) {
+//                 if(!segment.empty()) parts.push_back(segment);
+//             }
+
+//             if(parts.size() >= 2) {
+//                 // Case 1: Explicit Type (e.g., "unsigned int pid")
+//                 // The name is always the last element
+//                 std::string name = parts.back();
+                
+//                 // Reassemble the type from all preceding elements
+//                 std::string type = "";
+//                 for(size_t i=0; i<parts.size()-1; ++i) type += parts[i] + " ";
+                
+//                 // Remove trailing space from reassembly
+//                 if(!type.empty()) type.pop_back();
+
+//                 _colNames.push_back(name);
+//                 _colTypes[name] = type; 
+//             } 
+//             else if(parts.size() == 1) {
+//                 // Case 2: Name only (e.g., "px")
+//                 // Default to double for compatibility with standard ROOT physics vectors
+//                 _colNames.push_back(parts[0]);
+//                 _colTypes[parts[0]] = "double";
+//             }
+//         }
+//     }
+
+//     /**
+//      * @brief Adds a source of data to be merged into the unified vectors.
+//      * * @details
+//      * Registers a set of columns that correspond to the schema defined in DefineParticleInfo.
+//      * It creates unique temporary aliases for these columns to prevent name collisions
+//      * before the final merge.
+//      * * @param prefix The target prefix for the final vector (e.g., "rec_" or "mc_").
+//      * @param cols The list of existing RDataFrame column names to read from.
+//      * Must match the size and order of DefineParticleInfo.
+//      * @param filter Optional RDataFrame filter string (e.g., "genStatus==1").
+//      * If provided, the column is read as `colName[filter]`.
+//      * * @throws std::runtime_error if the number of columns doesn't match the schema.
+//      */
+//     void AddSource(const std::string& prefix, const std::vector<std::string>& cols, const std::string& filter = "") {
+//         if(cols.size() != _colNames.size()) {
+//             throw std::runtime_error("ParticleInjector Error: Source column count mismatch. " 
+//                                      "Expected " + std::to_string(_colNames.size()) + 
+//                                      ", got " + std::to_string(cols.size()));
+//         }
+        
+//         // Generate a unique ID for this source to ensure temporary names don't collide.
+//         // e.g. "rec_px_src0", "rec_px_src1"
+//         std::string sourceID = "_src" + std::to_string(_sources[prefix].size()); 
+//         std::vector<std::string> registeredCols;
+        
+//         for(size_t i=0; i<cols.size(); ++i) {
+//             std::string tempName = prefix + _colNames[i] + sourceID;
+//             std::string inputCol = cols[i];
+            
+//             // Define the temporary column in RDataFrame
+//             if(!filter.empty()) {
+//                 // Define filtered version: Define(tempName, "inputCol[filter]")
+//                 _reaction->Define(tempName, inputCol + "[" + filter + "]");
+//             } else {
+//                 // Simple Alias: Define(tempName, inputCol)
+//                 // Note: We use Define (alias) to expose the column under the temporary name
+//                 _reaction->Define(tempName, inputCol); 
+//             }
+//             registeredCols.push_back(tempName);
+//         }
+        
+//         // Store the temporary names for the final merge step
+//         _sources[prefix].push_back(registeredCols);
+//     }
+
+//     /**
+//      * @brief Finalizes the injection by creating the unified vectors.
+//      * * @details
+//      * Iterates through all defined properties (px, py, pid...) and all registered sources.
+//      * Constructs a JIT string for `rad::util::Concatenate<TYPE>(...)` and defines the
+//      * final column (e.g., "rec_px").
+//      * * Uses the type specified in DefineParticleInfo directly in the template parameter.
+//      */
+//     void CreateUnifiedVectors() {
+//         for(auto& [prefix, sources] : _sources) {
+            
+//             // Loop over each property (e.g., "px", then "py", then "pid")
+//             for(size_t i=0; i<_colNames.size(); ++i) {
+//                 std::string finalName = prefix + _colNames[i];
+//                 std::string type      = _colTypes[_colNames[i]];
+                
+//                 // Collect the temporary column names from all sources for this property
+//                 std::vector<std::string> colsToMerge;
+//                 for(const auto& src : sources) {
+//                     colsToMerge.push_back(src[i]);
+//                 }
+                
+//                 // Convert vector of strings to comma-separated string: "col1, col2, col3"
+//                 std::string args = util::ColumnsToStringNoBraces(colsToMerge);
+
+//                 // DIRECT TEMPLATE INJECTION
+//                 // Generates code: rad::util::Concatenate< type >( col1, col2, ... )
+//                 // This relies on the JIT compiler to instantiate the correct template specialization.
+//                 std::string call = "rad::util::Concatenate<" + type + ">(" + args + ")";
+//                 // Define the final unified column
+//                 _reaction->Define(finalName, call);
+//             }
+//         }
+//     }
+
+//   private:
+//     ConfigReaction* _reaction;                 ///< Pointer to the reaction interface
+//     std::vector<std::string> _colNames;        ///< Ordered list of variable names (e.g. px, py)
+//     std::map<std::string, std::string> _colTypes; ///< Map of variable name -> C++ type string
+    
+//     // Nested Map Structure:
+//     // Prefix (rec_) -> List of Sources -> List of Temporary Column Names
+//     std::map<std::string, std::vector<std::vector<std::string>>> _sources;
+//   };
+
+// } // namespace rad
+
