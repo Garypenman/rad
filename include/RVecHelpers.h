@@ -263,6 +263,19 @@ namespace rad{
        return res;
     }
     
+    /**
+     *  @brief Truncate vec at n
+     */
+    template<typename T>
+    ROOT::VecOps::RVec<T> Truncate(const ROOT::VecOps::RVec<T>& vec,const size_t size){
+      // std::cout<<"Truncate "<<vec<<size<<std::endl;
+      ROOT::RVec<T> ret;
+      ret.reserve(size);
+      for (auto i = 0UL; i < size; ++i) {
+	ret.emplace_back(vec[i]);
+      }
+      return ret;
+    }
   }//util
 }//rad
 

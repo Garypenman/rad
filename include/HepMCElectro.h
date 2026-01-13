@@ -67,21 +67,21 @@ namespace rad{
       DefineForAllTypes("pmag", Form("rad::ThreeVectorMag(components_p3)"));
   }
 
-  inline void HepMCElectro::DefineStableMomentumComponents(){
-      SetupMC();
+  // inline void HepMCElectro::DefineStableMomentumComponents(){
+  //     SetupMC();
        
-      // Map the status branch
-      setBranchAlias("particles.status",MC()+"genStat");
+  //     // Map the status branch
+  //     SetBranchAlias("particles.status",MC()+"genStat");
 
-      // Define 'final_pid' which retains PID only for stable particles (status == 1)
-      Define(MC()+"final_pid",[](const ROOT::RVecI& pid,const ROOT::RVecI& stat){
-	auto n = pid.size();
-	auto final_pid = pid;
-	// Vectorized masking: pid becomes 0 if stat != 1
-	final_pid*=(stat==1);
-	return final_pid;
+  //     // Define 'final_pid' which retains PID only for stable particles (status == 1)
+  //     Define(MC()+"final_pid",[](const ROOT::RVecI& pid,const ROOT::RVecI& stat){
+  // 	auto n = pid.size();
+  // 	auto final_pid = pid;
+  // 	// Vectorized masking: pid becomes 0 if stat != 1
+  // 	final_pid*=(stat==1);
+  // 	return final_pid;
 
-      },{MC()+"pid",MC()+"genStat"});
-  }
+  //     },{MC()+"pid",MC()+"genStat"});
+  // }
 
 }

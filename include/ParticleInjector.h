@@ -143,7 +143,7 @@ namespace rad {
         std::vector<std::string> registeredCols;
         
         for(size_t i = 0; i < cols.size(); ++i) {
-            std::string tempName = prefix + _colNames[i] + sourceID;
+	  std::string tempName = prefix + _colNames[i] + sourceID + DoNotWriteTag();
             std::string inputCol = cols[i];
             
             // Define the temporary column in RDataFrame

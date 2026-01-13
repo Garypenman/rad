@@ -7,7 +7,7 @@
 namespace rad{
   namespace rdf{
  
-    void Mass(config::ConfigReaction& cr,const string& name, const string& pos, const string& neg="{}"){
+    void Mass(ConfigReaction& cr,const string& name, const string& pos, const string& neg="{}"){
       //Note originally the rad:: function was called Mass
       //however this broke when a branch in the input tree
       // had a LEAF (not just branch) called Mass!!!
@@ -17,8 +17,8 @@ namespace rad{
       // auto function_expr = "rad::FourVectorMassCalc<" + obj_types + ">";
       // cr.DefineForAllTypes(name, "rad::FourVectorMassCalc<ROOT::VecOps::RVec<Double_t>,ROOT::VecOps::RVec<Double_t>>",pos.data(),neg.data(),"components_p4" );
       cr.DefineForAllTypes(name, "rad::FourVectorMassCalc",
-			   utils::combineVectorToString({pos.data(),neg.data()}),
-			   names::P4Components());
+			   util::combineVectorToString({pos.data(),neg.data()}),
+			   consts::P4Components());
     }
     
     // void DeltaPhi(config::ConfigReaction& cr,const string& name, const string& idxs){
@@ -32,13 +32,13 @@ namespace rad{
     // }
 
     
-    // void PrintParticles(config::ConfigReaction& cr,const string& type=rad::names::data_type::Truth()){
+    void PrintParticles(ConfigReaction& cr,const string& type=rad::consts::data_type::Truth()){
     
-    //   //Note can't sue templated lambdas so use JITing, but can't use Foreach for this
-    //   //So just use Filter returning true.
-    //   cr.Filter(Form("rad::PrintParticles(\"%s\",rdfentry_,%spid,%spx,%spy,%spz,%sm);return true;",type.data(),type.data(),type.data(),type.data(),type.data(),type.data()),type+"print");
-    //   //cr.setCurrFrame(cf);
-    // }
+      //Note can't use templated lambdas so use JITing, but can't use Foreach for this
+      //So just use Filter returning true.
+      cr.Filter(Form("rad::PrintParticles(\"%s\",rdfentry_,%spid,%spx,%spy,%spz,%sm);return true;",type.data(),type.data(),type.data(),type.data(),type.data(),type.data()),type+"print");
+      //cr.setCurrFrame(cf);
+    }
  
   }//namespace rdf
 }//namespace rad

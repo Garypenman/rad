@@ -53,7 +53,7 @@ namespace rad {
   {
       // 1. Define Topology: Create the "Scattered Electron Group" in RDF
       // We must use the specific prefix (e.g. "rec_") 
-      Reaction()->setGroupParticles(consts::ScatGroup(), GetPrefix(), {consts::ScatEle()});
+      Reaction()->SetGroupParticles(consts::ScatGroup(), GetPrefix(), {consts::ScatEle()});
 
       // 2. Register this group with the Creator
       // Creator() now knows that "scat_ele" logic relies on this RDF group.
@@ -72,15 +72,15 @@ namespace rad {
   }
 
   inline void KinematicsProcElectro::Q2() {
-       KineCalculation Q2(*this, "Q2", physics::ElS_Q2);
+    RegisterCalc("Q2", rad::physics::ElS_Q2);
   }
     
   inline void KinematicsProcElectro::CosThetaCM() {
-       KineCalculation CosTheta(*this, "CosThetaCM", physics::ElS_CosThetaCM);
+    RegisterCalc("CosThetaCM", rad::physics::ElS_CosThetaCM);
   }
     
   inline void KinematicsProcElectro::PhiCM() {
-       KineCalculation Phi(*this, "PhiCM", physics::ElS_PhiCM);
+    RegisterCalc("PhiCM", rad::physics::ElS_PhiCM);
   }
-
+ 
 } // namespace rad

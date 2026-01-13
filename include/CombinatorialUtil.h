@@ -129,7 +129,7 @@ namespace rad {
         const RVecIndexMap& fixed_map,
         const ROOT::RVec<ROOT::RVec<RVecResultType>>& components) 
     {
-      // Safety check: Ensure components exist
+       // Safety check: Ensure components exist
       if(components.empty()) {
           return {};
       }
@@ -138,7 +138,7 @@ namespace rad {
       // const size_t N_components = components[0].size(); // Expected to be 4 (Px,Py,Pz,M)
                
       ROOT::RVec<ResultType_t> results(N_combis);
-      
+
       // --- Core Execution Loop ---
       for (size_t i_combo = 0; i_combo < N_combis; ++i_combo) {
           

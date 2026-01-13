@@ -69,11 +69,11 @@ namespace rad {
     private:
         struct ModiConfig {
             std::string target_name;
-            std::unique_ptr<ModifierBase> modifier;
+            std::shared_ptr<ModifierBase> modifier;
         };
 
         std::vector<ModiConfig> _modi_configs; 
-        std::vector<std::unique_ptr<ModifierBase>> _active_modifiers; 
+        std::vector<std::shared_ptr<ModifierBase>> _active_modifiers; 
         
         std::vector<std::string> _aux_double_cols; 
         std::vector<std::string> _aux_int_cols;    

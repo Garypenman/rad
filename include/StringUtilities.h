@@ -487,14 +487,19 @@ std::string toLower(std::string s) {
       return toString;
     }
     //////////////////////////////////////////////////////////////////
-    std::string ColumnsToStringNoBraces(const ROOT::RDF::ColumnNames_t &cols) {
-      if(cols.empty()==true) return "";
+    /**
+     * @brief Joins column names with commas but WITHOUT surrounding braces.
+     * Essential for passing arguments to C++ variadic templates in JIT code.
+     * e.g. returns "col1,col2,col3" instead of "{col1,col2,col3}"
+     */
+    inline std::string ColumnsToStringNoBraces(const ROOT::RDF::ColumnNames_t &cols) {
+      if(cols.empty()) return "";
       
-      string toString ="";
-      for(const auto& p:cols){
-	toString=(toString + p + ",");
+      std::string toString = "";
+      for(const auto& p : cols){
+         toString += (p + ",");
       }
-      toString.pop_back(); //remove last ,
+      if (!toString.empty()) toString.pop_back(); // remove last comma
        
       return toString;
     }

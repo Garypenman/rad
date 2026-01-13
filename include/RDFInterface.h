@@ -63,14 +63,12 @@ namespace rad {
       template<typename Lambda>
       void Define(const string_view name, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns);
 
-      void Redefine(const string& name, const string& expression);
+      void RedefineExpr(const string& name, const string& expression);
 
       template<typename Lambda>
       void Redefine(const string& name, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns = {});
     
-      template<typename Lambda>
-      void RedefineViaAlias(const string& alias, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns );
- 
+  
       void Filter(const std::string& expression, const std::string& name = "");
 
       template<typename Lambda>
@@ -91,10 +89,6 @@ namespace rad {
       bool OriginalColumnExists(const string& col);
       bool ColumnExists(const string& col);
     
-      void setBranchAlias(const string& old_name, const string& new_name);
-      bool CheckAlias(const string& alias);
-      const std::map<string,string>& AliasMap() const;
-
       string ColObjTypeString(const string& name);
     
     protected:
@@ -195,7 +189,7 @@ namespace rad {
         setCurrFrame(CurrFrame().Define(name, func, columns));
     }
 
-    inline void RDFInterface::Redefine(const string& name, const string& expression) {
+    inline void RDFInterface::RedefineExpr(const string& name, const string& expression) {
         setCurrFrame(CurrFrame().Redefine(name, expression));
     }
 
@@ -204,15 +198,7 @@ namespace rad {
         setCurrFrame(CurrFrame().Redefine(name, func, columns));
     }
     
-    template<typename Lambda>
-    inline void RDFInterface::RedefineViaAlias(const string& alias, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns ){
-        auto it = _aliasMap.find(alias);
-        if (it == _aliasMap.end()) {
-          throw std::invalid_argument("RedefineViaAlias: alias '" + alias + "' does not exist in _aliasMap.");
-        }
-        Redefine(it->second, std::forward<Lambda>(func), columns);
-    }
- 
+   
     inline void RDFInterface::Filter(const std::string& expression, const std::string& name) {
         setCurrFrame(CurrFrame().Filter(expression, name));
     }
@@ -240,20 +226,7 @@ namespace rad {
         return std::find(cols.begin(), cols.end(), col) != cols.end();
     }
     
-    inline void RDFInterface::setBranchAlias(const string& old_name, const string& new_name) {
-        if (!OriginalColumnExists(old_name)) {
-          throw std::invalid_argument("setBranchAlias: Source column '" + old_name + "' does not exist.");
-        }
-        _aliasMap[new_name] = old_name;
-        setCurrFrame(CurrFrame().Alias(new_name, old_name));
-    }
-
-    inline bool RDFInterface::CheckAlias(const string& alias){
-        return _aliasMap.find(alias) != _aliasMap.end();
-    }
-
-    inline const std::map<string,string>& RDFInterface::AliasMap() const { return _aliasMap; }
-
+   
     inline string RDFInterface::ColObjTypeString(const string& name){ return CurrFrame().GetColumnType(name); }
   
 } // namespace rad

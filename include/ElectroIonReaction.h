@@ -44,51 +44,51 @@ namespace rad {
       // --- Scattered Electron Setters ---
       
       /** @brief Set a fixed single index for the scattered electron (e.g. index 0). */
-      void setScatElectronIndex(const int idx, const std::string& type = "");
+      void SetScatElectronIndex(const int idx, const std::string& type = "");
       
       /** @brief Set a list of potential candidates for the scattered electron. */
-      void setScatElectronCandidates(const Indices_t& idx, const std::string& type = "");
+      void SetScatElectronCandidates(const Indices_t& idx, const std::string& type = "");
       
       /** @brief Define scattered electron candidates using a lambda function. */
       template<typename Lambda>
-      void setScatElectronCandidates(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns);
+      void SetScatElectronCandidates(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns);
       
       // Convenience Overloads (Default Type)
       template<typename Lambda>
-      void setScatElectronCandidates(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns);
+      void SetScatElectronCandidates(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns);
 
       template<typename Lambda>
-      void setScatElectronIndex(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns);
+      void SetScatElectronIndex(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns);
       
       template<typename Lambda>
-      void setScatElectronIndex(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns);
+      void SetScatElectronIndex(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns);
 
       // --- Beam Setters ---
       
-      void setBeamElectronIndex(const int idx, const std::string& type = "");
+      void SetBeamElectronIndex(const int idx, const std::string& type = "");
       
       template<typename Lambda>
-      void setBeamElectron(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns);
+      void SetBeamElectron(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns);
       
       template<typename Lambda>
-      void setBeamElectron(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns);
+      void SetBeamElectron(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns);
 
-      void setBeamIonIndex(const int idx, const std::string& type = "");
+      void SetBeamIonIndex(const int idx, const std::string& type = "");
       
       template<typename Lambda>
-      void setBeamIon(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns);
+      void SetBeamIon(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns);
       
       template<typename Lambda>
-      void setBeamIon(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns);
+      void SetBeamIon(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns);
 
 
       // --- Beam Kinematics Storage ---
 
       /** @brief Set fixed beam electron momentum (GeV). */
-      void setBeamElectron(double x, double y, double z);
+      void SetBeamElectron(double x, double y, double z);
      
       /** @brief Set fixed beam ion momentum (GeV). Default mass is Proton. */
-      void setBeamIon(double x, double y, double z, double m=0.938272);
+      void SetBeamIon(double x, double y, double z, double m=0.938272);
       
       void DefineBeamElectron();
       void DefineBeamIon();
@@ -163,66 +163,66 @@ namespace rad {
   }
 
   // --- Scattered Electron ---
-  inline void ElectroIonReaction::setScatElectronIndex(const int idx, const std::string& type){
-    setParticleIndex(consts::ScatEle().data(), type.empty() ? GetDefaultType() : type, idx);
+  inline void ElectroIonReaction::SetScatElectronIndex(const int idx, const std::string& type){
+    SetParticleIndex(consts::ScatEle().data(), type.empty() ? GetDefaultType() : type, idx);
   }
 
-  inline void ElectroIonReaction::setScatElectronCandidates(const Indices_t& idx, const std::string& type){
-    setParticleCandidates(consts::ScatEle().data(), type.empty() ? GetDefaultType() : type, idx);
+  inline void ElectroIonReaction::SetScatElectronCandidates(const Indices_t& idx, const std::string& type){
+    SetParticleCandidates(consts::ScatEle().data(), type.empty() ? GetDefaultType() : type, idx);
   }
 
   template<typename Lambda>
-  inline void ElectroIonReaction::setScatElectronCandidates(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns){
-     setParticleCandidates(consts::ScatEle().data(), type.empty() ? GetDefaultType() : type, func, columns);
+  inline void ElectroIonReaction::SetScatElectronCandidates(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns){
+     SetParticleCandidates(consts::ScatEle().data(), type.empty() ? GetDefaultType() : type, func, columns);
   }
   
   template<typename Lambda>
-  inline void ElectroIonReaction::setScatElectronCandidates(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns){
-     setParticleCandidates(consts::ScatEle().data(), GetDefaultType(), func, columns);
+  inline void ElectroIonReaction::SetScatElectronCandidates(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns){
+     SetParticleCandidates(consts::ScatEle().data(), GetDefaultType(), func, columns);
   }
 
   template<typename Lambda>
-  inline void ElectroIonReaction::setScatElectronIndex(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns){
-    setParticleIndex(consts::ScatEle().data(), type.empty() ? GetDefaultType() : type, func, columns);
+  inline void ElectroIonReaction::SetScatElectronIndex(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns){
+    SetParticleIndex(consts::ScatEle().data(), type.empty() ? GetDefaultType() : type, func, columns);
   }
   
   template<typename Lambda>
-  inline void ElectroIonReaction::setScatElectronIndex(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns){
-    setParticleIndex(consts::ScatEle().data(), GetDefaultType(), func, columns);
+  inline void ElectroIonReaction::SetScatElectronIndex(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns){
+    SetParticleIndex(consts::ScatEle().data(), GetDefaultType(), func, columns);
   }
 
   // --- Beam Electron ---
-  inline void ElectroIonReaction::setBeamElectronIndex(const int idx, const std::string& type){
-    setParticleIndex(consts::BeamEle().data(), type.empty() ? GetDefaultType() : type, idx);
+  inline void ElectroIonReaction::SetBeamElectronIndex(const int idx, const std::string& type){
+    SetParticleIndex(consts::BeamEle().data(), type.empty() ? GetDefaultType() : type, idx);
   }
   template<typename Lambda>
-  inline void ElectroIonReaction::setBeamElectron(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns){
-    setParticleIndex(consts::BeamEle().data(), type.empty() ? GetDefaultType() : type, func, columns);
+  inline void ElectroIonReaction::SetBeamElectron(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns){
+    SetParticleIndex(consts::BeamEle().data(), type.empty() ? GetDefaultType() : type, func, columns);
   }
   template<typename Lambda>
-  inline void ElectroIonReaction::setBeamElectron(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns){
-    setParticleIndex(consts::BeamEle().data(), GetDefaultType(), func, columns);
+  inline void ElectroIonReaction::SetBeamElectron(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns){
+    SetParticleIndex(consts::BeamEle().data(), GetDefaultType(), func, columns);
   }
 
   // --- Beam Ion ---
-  inline void ElectroIonReaction::setBeamIonIndex(const int idx, const std::string& type){
-    setParticleIndex(consts::BeamIon().data(), type.empty() ? GetDefaultType() : type, idx);
+  inline void ElectroIonReaction::SetBeamIonIndex(const int idx, const std::string& type){
+    SetParticleIndex(consts::BeamIon().data(), type.empty() ? GetDefaultType() : type, idx);
   }
   template<typename Lambda>
-  inline void ElectroIonReaction::setBeamIon(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns){
-    setParticleIndex(consts::BeamIon().data(), type.empty() ? GetDefaultType() : type, func, columns);
+  inline void ElectroIonReaction::SetBeamIon(Lambda&& func, const std::string& type, const ROOT::RDF::ColumnNames_t & columns){
+    SetParticleIndex(consts::BeamIon().data(), type.empty() ? GetDefaultType() : type, func, columns);
   }
   template<typename Lambda>
-  inline void ElectroIonReaction::setBeamIon(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns){
-    setParticleIndex(consts::BeamIon().data(), GetDefaultType(), func, columns);
+  inline void ElectroIonReaction::SetBeamIon(Lambda&& func, const ROOT::RDF::ColumnNames_t & columns){
+    SetParticleIndex(consts::BeamIon().data(), GetDefaultType(), func, columns);
   }
 
   // --- Fixed Beam Values ---
-  inline void ElectroIonReaction::setBeamElectron(double x, double y, double z){
+  inline void ElectroIonReaction::SetBeamElectron(double x, double y, double z){
     _p4el_beam = PxPyPzMVector{x,y,z,0.000510999};
   }
  
-  inline void ElectroIonReaction::setBeamIon(double x, double y, double z, double m){
+  inline void ElectroIonReaction::SetBeamIon(double x, double y, double z, double m){
     _p4ion_beam = PxPyPzMVector{x,y,z,m};
   }
   
@@ -238,12 +238,12 @@ namespace rad {
   }
 
   inline void ElectroIonReaction::FixBeamElectronMomentum(double x,double y,double z){
-    setBeamElectron(x,y,z);
+    SetBeamElectron(x,y,z);
     _useBeamsFromMC=false; 
     DefineBeamElectron();
   }
   inline void ElectroIonReaction::FixBeamIonMomentum(double x,double y,double z,double m){
-    setBeamIon(x,y,z,m);
+    SetBeamIon(x,y,z,m);
     _useBeamsFromMC=false; 
     DefineBeamIon();
   }

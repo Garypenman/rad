@@ -353,7 +353,7 @@ namespace rad {
   template<typename Tpid, typename Tp, typename Tm>
   bool PrintParticles(const std::string& type, ULong64_t entry, const Tpid &pid, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     
-    std::cout << type << " PrintParticles Event = " << entry << std::endl;
+    std::cout << type << " PrintParticles Event = " << entry << " number " <<px.size()<<std::endl;
     for (size_t idx = 0; idx < px.size(); ++idx) {
       std::cout << " " << pid[idx] << "\t" << PxPyPzMVector(px[idx], py[idx], pz[idx], m[idx]) 
 		<< " pmag " << ThreeVectorMag(px, py, pz)[idx] 
