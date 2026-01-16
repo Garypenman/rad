@@ -42,7 +42,7 @@
           <ul class="list-disc pl-5 mt-2 text-slate-600">
             <li>Simplifies code for complex final states (e.g. <code>e p -> e' K+ X</code>).</li>
             <li>Handles multiple data types (HepMC, Podio, Flat Trees) uniformly.</li>
-            <li><strong>Auto-Combinatorics:</strong> Automatically generates and sorts all valid particle combinations.</li>
+            <li><strong>Master/Clone Architecture:</strong> Analyze multiple hypotheses (Rec/Truth, Detected/Missing) in a single pass.</li>
           </ul>
         </div>
         <div class="rad-card p-6">
@@ -68,22 +68,25 @@
 void ProcessHepMCZCombi() {
   // 1. Create interface to the ROOT file
   rad::HepMCElectro hepmc{"hepmc3_tree", "data_file.root"};
-  hepmc.SetupMC(); // Maps branches to standard columns
+  hepmc.SetupMC(); 
 
-  // 2. Define Topology (The Basis)
-  hepmc.setBeamElectron(0, 0, -10); // 10 GeV e-
-  hepmc.setParticleCandidates("ele", "rec_", rad::index::useNthOccurance(1, 11));
+  // 2. Define Topology (Candidates & Roles)
+  hepmc.SetBeamElectronIndex(0); // Beam is Index 0
+  
+  // Define "ele" as any track with PID 11
+  hepmc.SetParticleCandidates("ele", 2 /*Role*/, rad::index::FilterIndices(11), {"pid"});
+  hepmc.SetParticleCandidates("pos", 3 /*Role*/, rad::index::FilterIndices(-11), {"pid"});
   
   // 3. Initialize Kinematics Processor
   rad::KinematicsProcElectro kine(&hepmc, "rec_");
   
   // Define Composite Particles (J/psi -> e+ e-)
-  kine.Creator().Sum("Jpsi", {{"ele"}, {"pos"}});
-  kine.Init(); // Triggers Combinatorial Sort
-
+  kine.Creator().Sum("Jpsi", {{"ele", "pos"}});
+  
   // 4. Calculate Physics
-  kine.Q2(); // Standard variable
-  kine.Mass("M_Jpsi", {"Jpsi"}); // Invariant Mass
+  kine.Init(); // Triggers Combinatorial Sort
+  kine.Q2(); 
+  kine.Mass("M_Jpsi", {"Jpsi"}); 
 
   // 5. Snapshot results
   hepmc.Snapshot("output.root");

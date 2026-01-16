@@ -23,7 +23,7 @@ namespace rad {
          * @brief Deep Copy Constructor.
          * Required for the Twin Topology pattern (e.g., creating a Linked Processor).
          */
-        ParticleModifier(const ParticleModifier& other);
+      ParticleModifier(const ParticleModifier& other) =default;
 
         // --- Configuration ---
 
@@ -59,7 +59,7 @@ namespace rad {
                    ROOT::RVecD& pz, ROOT::RVecD& m, 
                    const AuxCacheD& aux_d, const AuxCacheI& aux_i) const;
 
-        // --- Accessors ---
+         // --- Accessors ---
 
         const std::vector<std::string>& GetAuxDoubleCols() const;
         const std::vector<std::string>& GetAuxIntCols() const;
@@ -83,17 +83,18 @@ namespace rad {
     // IMPLEMENTATION
     // =================================================================================
 
-    inline ParticleModifier::ParticleModifier(const ParticleModifier& other) 
-        : _modi_configs(), // Deep copy manual step below
-          _active_modifiers(), // Active modifiers are rebuilt via Init()
-          _aux_double_cols(other._aux_double_cols),
-          _aux_int_cols(other._aux_int_cols) 
-    {
-        // Deep copy the pending configurations
-        for(const auto& conf : other._modi_configs) {
-            _modi_configs.push_back({conf.target_name, conf.modifier->Clone()});
-        }
-    }
+    // inline ParticleModifier::ParticleModifier(const ParticleModifier& other) 
+    //     : _modi_configs(), // Deep copy manual step below
+    //       _active_modifiers(), // Active modifiers are rebuilt via Init()
+    //       _aux_double_cols(other._aux_double_cols),
+    //       _aux_int_cols(other._aux_int_cols) 
+    // {
+    //     // Deep copy the pending configurations
+    //     for(const auto& conf : other._modi_configs) {
+    //         _modi_configs.push_back({conf.target_name, conf.modifier->Clone()});
+    //     }
+    // 	cout<< "ParticleModifier::ParticleModifier copy "<<endl;
+    // }
 
     inline void ParticleModifier::ScaleMomentum(const std::string& name, double scale) {
         auto mod = std::make_unique<ModScaleMomentum>(scale);

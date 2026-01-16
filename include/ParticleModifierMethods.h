@@ -105,6 +105,7 @@ namespace rad {
                     ROOT::RVecD& pz, ROOT::RVecD& m,
                     const AuxCacheD&, const AuxCacheI&) const 
     {
+        if (_target_idx < 0 || _target_idx >= static_cast<Indice_t>(px.size())) return;
         px[_target_idx] *= _scale;
         py[_target_idx] *= _scale;
         pz[_target_idx] *= _scale;
@@ -122,12 +123,16 @@ namespace rad {
                     ROOT::RVecD& pz, ROOT::RVecD& m,
                     const AuxCacheD&, const AuxCacheI&) const 
     {
+        if (_target_idx < 0 || _target_idx >= static_cast<Indice_t>(m.size())) return;
         m[_target_idx] = _mass;
     }
 
     // --- ModSetMomFromAux ---
     inline ModSetMomFromAux::ModSetMomFromAux(Indice_t aux_row) : _row(aux_row) {}
-    inline ModSetMomFromAux::ModSetMomFromAux(const Indices_t& dRows, const Indices_t&, int) : _row(dRows.at(0)) {}
+    
+    // Hardened: Handle empty input vector safely
+    inline ModSetMomFromAux::ModSetMomFromAux(const Indices_t& dRows, const Indices_t&, int) 
+        : _row(dRows.empty() ? -1 : dRows[0]) {}
 
     inline std::unique_ptr<ModifierBase> ModSetMomFromAux::Clone() const {
         return std::make_unique<ModSetMomFromAux>(_row);
@@ -137,21 +142,31 @@ namespace rad {
                     ROOT::RVecD& pz, ROOT::RVecD& m,
                     const AuxCacheD& aux_d, const AuxCacheI&) const 
     {
-        double p2 = px[_target_idx]*px[_target_idx] + py[_target_idx]*py[_target_idx] + pz[_target_idx]*pz[_target_idx];
-        if(p2 == 0) return;
-        double old_mag = std::sqrt(p2);
+        // 1. Valid Index Checks (Bounds Safety)
+        if (_target_idx < 0 || _target_idx >= static_cast<Indice_t>(px.size())) return;
+        if (_row < 0 || _row >= static_cast<Indice_t>(aux_d.size())) return; 
+        if (_target_idx >= static_cast<Indice_t>(aux_d[_row].size())) return;
 
-        // Fetch new magnitude from the Aux Cache
+        // 2. Fetch new magnitude
         double new_mag = aux_d[_row][_target_idx];
 
+        // 3. Safety Check: Skip if NaN or <= 0 (e.g. missing cluster)
+        if (std::isnan(new_mag) || new_mag <= 1e-9) return; 
+
+        // 4. Calculate Scale Factor
+        double p2 = px[_target_idx]*px[_target_idx] + py[_target_idx]*py[_target_idx] + pz[_target_idx]*pz[_target_idx];
+        if(p2 < 1e-9) return; // Prevent division by zero
+
+        double old_mag = std::sqrt(p2);
         double scale = new_mag / old_mag;
+
+        // 5. Apply
         px[_target_idx] *= scale;
         py[_target_idx] *= scale;
         pz[_target_idx] *= scale;
     }
 
 } // namespace rad
-
 
 // #pragma once
 // #include "CommonDefines.h"

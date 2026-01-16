@@ -53,6 +53,7 @@ namespace rad {
        */
       explicit ParticleCreator(ConfigReaction* cr, const std::string& prefix, const std::string& suffix = "");
 
+    
       /** * @brief Copy Constructor for cloning topologies (e.g. Rec -> Truth).
        * @param other The source ParticleCreator to copy configuration from.
        * @param new_suffix The new suffix to apply to the cloned topology.
@@ -227,6 +228,18 @@ namespace rad {
        */
       Indices_t CreateIndices(IndexMap_t& nameIndex, const ParticleNames_t& names, size_t& idx);
 
+      /** * @brief Returns a list of all particle names currently registered in the index map.
+       * @details Used by KinematicsProcessor to iterate over particles and define output columns.
+       */
+      ROOT::RVec<std::string> GetParticleNames() const {
+	ROOT::RVec<std::string> names;
+          names.reserve(_nameIndex.size());
+          for(const auto& pair : _nameIndex) {
+              names.push_back(pair.first);
+          }
+          return names;
+      }
+      
     private:
       ConfigReaction* _reaction = nullptr;
       std::string _prefix; 

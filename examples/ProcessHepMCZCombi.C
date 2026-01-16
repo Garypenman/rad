@@ -83,10 +83,10 @@ void ProcessHepMCZCombi(){
   
   // 1. Clone: Copies all the calculations registered above (Q2, Phi, Mass, tp...)
   //    Creates a new processor for the "mc_" stream but with suffix "_ncalc"
-  auto kine_miss = kine.CloneLinked("_ncalc");
+  // auto kine_miss = kine.CloneLinked("_ncalc");
 
-  // 2. Customize: Override "Baryons" to be "n_calc" (missing neutron) for this hypothesis
-  kine_miss->SetBaryonParticles({"n_calc"});
+  // // 2. Customize: Override "Baryons" to be "n_calc" (missing neutron) for this hypothesis
+  // kine_miss->SetBaryonParticles({"n_calc"});
 
   // =================================================================================
   // 6. INITIALIZATION & EXECUTION

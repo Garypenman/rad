@@ -45,12 +45,12 @@
         <div class="diagram-arrow text-slate-500 text-2xl my-2">↓</div>
         <div class="flex gap-8 w-full justify-center">
             <div class="diagram-node bg-indigo-600">ConfigReaction</div>
-            <p class="text-sm self-center text-slate-400 text-left w-64">Manages Data Types (<code>rec_</code>, <code>tru_</code>).<br>Triggers the Combinatorial Engine.</p>
+            <p class="text-sm self-center text-slate-400 text-left w-64">Manages Data Types (<code>Rec</code>, <code>Truth</code>).<br>Handles Candidate Matching logic.</p>
         </div>
         <div class="diagram-arrow text-slate-500 text-2xl my-2">↓</div>
         <div class="flex gap-8 w-full justify-center">
             <div class="diagram-node bg-blue-600">KinematicsProcessor</div>
-            <p class="text-sm self-center text-slate-400 text-left w-64"><strong>The Engine.</strong><br>Runs the physics loop over combinations.</p>
+            <p class="text-sm self-center text-slate-400 text-left w-64"><strong>The Engine.</strong><br>Manages Clones, Initialization Cascade, and Physics Loop.</p>
         </div>
         
         <div class="flex gap-4 mt-8 pt-8 border-t border-slate-700 w-full justify-center">
@@ -60,11 +60,11 @@
             </div>
             <div class="p-3 border border-slate-600 rounded bg-slate-800">
                 <span class="role-badge role-creator">Creator</span>
-                <p class="text-xs text-slate-400">Topology Definition</p>
+                <p class="text-xs text-slate-400">Topology & Grouping</p>
             </div>
             <div class="p-3 border border-slate-600 rounded bg-slate-800">
                 <span class="role-badge role-modifier">Modifier</span>
-                <p class="text-xs text-slate-400">Calibration & Corrections</p>
+                <p class="text-xs text-slate-400">Calibration & Smearing</p>
             </div>
         </div>
     </div>
@@ -119,18 +119,39 @@ IndexMap = {
   </section>
 
   <section>
-    <h2 class="section-title">4. Pattern: Twin Topology (InitLinked)</h2>
+    <h2 class="section-title">4. Pattern: Master/Clone Architecture</h2>
     <p class="mb-4">
-        The most powerful feature for performance is the ability to run multiple hypotheses (e.g., "Detected Neutron" vs "Missing Neutron") using a single combinatorial sort.
+        RAD employs a hierarchical <strong>Master/Clone</strong> system to efficiently process multiple physics streams (Rec vs Truth) and topologies (Detected vs Missing) with minimal code.
     </p>
-    <div class="rad-card p-6 border-l-4 border-yellow-500">
-        <h3 class="font-bold text-white mb-2">How it works:</h3>
-        <ol class="list-decimal pl-5 space-y-2 text-slate-400">
-            <li><strong>Master Processor:</strong> Calls <code class="text-blue-300">Init()</code>. Calculates the heavy <code class="text-orange-300">ReactionMap</code> (sorting all tracks, checking uniqueness).</li>
-            <li><strong>Linked Processor:</strong> Calls <code class="text-blue-300">InitLinked(master)</code>. It <strong>adopts</strong> the indices from the master.</li>
-            <li><strong>Divergence:</strong> The Linked processor can have different <code class="text-blue-300">ParticleCreator</code> definitions (e.g., defining the "Baryon" slot as a missing mass calculation instead of a track lookup).</li>
-            <li><strong>Result:</strong> RDataFrame runs the sorting loop <strong>ONCE</strong>. Both processors run their physics kernels on the same set of indices, but produce different physics results.</li>
-        </ol>
+    
+    <div class="grid grid-cols-1 gap-6">
+        <div class="rad-card p-6 border-l-4 border-yellow-500">
+            <h3 class="font-bold text-white mb-2">Core Concepts</h3>
+            <ul class="list-disc pl-5 space-y-2 text-slate-400">
+                <li><strong>Master Processor:</strong> The root of the tree. Defines the primary topology (usually "Rec Detected"). Owns the initialization trigger.</li>
+                <li><strong>Type Clone (<code>CloneForType</code>):</strong> Creates a copy for a different data stream (e.g., Rec &rarr; Truth). It automatically <strong>Ports Groups</strong> (e.g. converting `rec_scat_ele` to `mc_scat_ele`).</li>
+                <li><strong>Linked Clone (<code>CloneLinked</code>):</strong> Creates a new topology hypothesis (e.g., "Missing Mass") on the same data stream. It shares the Master's index map but calculates different physics variables.</li>
+                <li><strong>Cascading Init:</strong> Calling <code class="text-blue-300">master.Init()</code> automatically initializes the entire tree of clones.</li>
+            </ul>
+        </div>
+
+        <div class="rad-card p-6">
+            <h3 class="font-bold text-white mb-4">Initialization Flow</h3>
+            <div class="code-block text-sm">
+// 1. User Code
+kine_det_rec.Init(); 
+
+// 2. Framework Execution Order
+-> kine_det_rec (Master)
+   -> Init Self (Builds Reaction Map)
+   -> Loop _type_clones:
+        -> kine_det_tru.Init()  // Independent Map (Truth)
+   -> Loop _linked_clones:
+        -> kine_miss_rec.InitLinked(master) // Adopts Master Map
+             -> Loop _type_clones (of linked):
+                  -> kine_miss_tru.Init() // Independent Map (Truth Missing)
+            </div>
+        </div>
     </div>
   </section>
 
@@ -165,10 +186,15 @@ void Setup() {
     <div class="rad-card p-6 border-l-4 border-purple-500">
         <h3 class="text-xl font-bold text-white mb-2"><span class="role-badge role-creator">Creator</span> ParticleCreator</h3>
         <p class="text-slate-300 mb-4">
-            <strong>Role:</strong> The "Architect". Manages the definition of particles. It does not store data itself but calculates the <strong>Indices</strong> that point to the data. It handles the logic for creating composite particles (Sum/Diff).
+            <strong>Role:</strong> The "Architect". Manages the definition of particles and groups. 
+            Crucially, it handles <strong>Group Porting</strong> for clones, translating definitions like `rec_scat_ele_group` to `mc_scat_ele_group` automatically.
         </p>
-        <h4 class="font-bold text-purple-400 mb-2">How to Extend (New Creation Algorithm):</h4>
-        <p class="text-sm text-slate-400 mb-2">To add a new creation method (e.g., "Create by Decay"), define a function with the <code>ParticleCreatorFunc_t</code> signature.</p>
+        <h4 class="font-bold text-purple-400 mb-2">Key Functionality:</h4>
+        <ul class="list-disc pl-5 space-y-2 text-slate-400 text-sm mb-4">
+            <li><strong>PortGroupsFrom(parent):</strong> Scans parent groups, strips the prefix (e.g. `rec_`), adds the new prefix (e.g. `mc_`), and registers the new group if particles exist.</li>
+            <li><strong>Input Aliasing:</strong> Automatically aliases `mc_scat_ele` to `mc_scat_ele_miss` for linked processors to ensure consistent suffix handling.</li>
+        </ul>
+        <h4 class="font-bold text-purple-400 mb-2">How to Extend (New Algorithm):</h4>
         <div class="code-block">
 // 1. Define the Calculation Logic (The Kernel)
 // indices[0] = Mother, indices[1] = Daughter (passed via dependency list)
@@ -185,17 +211,16 @@ kine.Creator().AddParticle("MyPart", MyDecayCreator, {{"Mother"}, {"Daughter"}})
     <div class="rad-card p-6 border-l-4 border-pink-500">
         <h3 class="text-xl font-bold text-white mb-2"><span class="role-badge role-modifier">Modifier</span> ParticleModifier</h3>
         <p class="text-slate-300 mb-4">
-            <strong>Role:</strong> The "Mechanic". Applies in-place corrections to the 4-vectors <em>inside the event loop</em>. Used for Calibration, Smearing, or Constraints. It can request auxiliary data (like Calorimeter Energy) to use in the correction.
+            <strong>Role:</strong> The "Mechanic". Applies in-place corrections to the 4-vectors <em>inside the event loop</em>. Used for Calibration, Smearing, or Constraints.
         </p>
         <h4 class="font-bold text-pink-400 mb-2">How to Extend (New Correction):</h4>
-        <p class="text-sm text-slate-400 mb-2">Inherit from <code>ModifierBase</code>.</p>
         <div class="code-block">
-// 1. Define Custom Strategy
+// 1. Define Custom Strategy inheriting from ModifierBase
 class MyEnergyScale : public rad::ModifierBase {
 public:
     MyEnergyScale(double factor) : _factor(factor) {}
     
-    // Required: Clone pattern
+    // Required: Clone pattern for processor copying
     std::unique_ptr<ModifierBase> Clone() const override { 
         return std::make_unique<MyEnergyScale>(_factor); 
     }
@@ -203,7 +228,6 @@ public:
     // The Logic: Modifies px, py, pz in-place
     void operator()(RVecD& px, RVecD& py, RVecD& pz, RVecD& m, 
                     const AuxCacheD&, const AuxCacheI&) const override {
-        // _target_idx is set automatically by framework
         px[_target_idx] *= _factor; 
         py[_target_idx] *= _factor;
         pz[_target_idx] *= _factor;
@@ -221,7 +245,7 @@ kine.PreModifier().AddCustom<MyEnergyScale>("ele", {}, {}, 1.05);
   <section>
     <h2 class="section-title">6. Writing Custom Physics Kernels</h2>
     <p class="mb-4">
-        To add new physics (e.g., a specific angle calculation), create a C++ function and register it via <code>KineCalculation</code>.
+        To add new physics (e.g., a specific angle calculation), create a C++ function and register it via <code>RegisterCalc</code>.
     </p>
 
     <div class="rad-card p-6">
@@ -241,8 +265,7 @@ namespace rad {
                                 const RVecResultType& pz, 
                                 const RVecResultType& m) 
     {
-      // 1. Get Indices
-      // rad::consts::OrderBeamEle() returns the fixed row index for the beam.
+      // 1. Get Indices via Standard Groups
       auto idx_beam = map[rad::consts::OrderBeamEle()]; 
       auto idx_scat = map[rad::consts::OrderScatEle()];
 
@@ -253,6 +276,9 @@ namespace rad {
     }
   }
 }
+
+// In Script:
+kine.RegisterCalc("t_val", rad::physics::CalcT);
         </div>
     </div>
   </section>

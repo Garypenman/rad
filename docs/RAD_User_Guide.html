@@ -47,47 +47,44 @@
     <p class="mb-4 text-lg">Initialize the reaction and define the colliding beams.</p>
     <div class="code-block">
 <span class="comment">// 1. Initialize the Reaction (Data Source)</span>
-<span class="type">HepMCElectro</span> <span class="func">hepmc</span>(<span class="string">"hepmc3_tree"</span>, <span class="string">"data/output_*.root"</span>);
+<span class="type">epic::ePICReaction</span> <span class="func">reaction</span>(<span class="string">"events"</span>, <span class="string">"data/*.root"</span>);
 
-<span class="comment">// 2. Register Data Tiers</span>
-hepmc.<span class="func">AddType</span>(rad::consts::data_type::Rec());   <span class="comment">// "rec_"</span>
-hepmc.<span class="func">AddType</span>(rad::consts::data_type::Truth()); <span class="comment">// "tru_"</span>
+<span class="comment">// 2. Setup Beams (e.g. from MC header)</span>
+reaction.<span class="func">SetBeamsFromMC</span>(0, 1); 
+reaction.<span class="func">SetupMatching</span>(); <span class="comment">// Prepares Rec-to-Truth tables</span>
 
-<span class="comment">// 3. Prepare Data (Aliasing & Math)</span>
-hepmc.<span class="func">SetupMC</span>(); 
-
-<span class="comment">// 4. Define Beams (e.g. 10 GeV e- on 100 GeV p)</span>
-hepmc.<span class="func">setBeamElectron</span>(0, 0, -10);
-hepmc.<span class="func">setBeamIon</span>(0, 0, 100);
+<span class="comment">// 3. Register Data Tiers</span>
+<span class="comment">// Reaction handles "rec_" and "mc_" prefixes automatically</span>
     </div>
   </section>
 
   <section>
     <h2 class="section-title"><span class="step-number">2</span>Topology & Particles</h2>
-    <p class="mb-4 text-lg">Define the Final State. RAD uses <code>ParticleCreator</code> to map strings to data indices.</p>
+    <p class="mb-4 text-lg">Define Candidates (Inputs) and Composite Particles (Sum/Diff).</p>
     <div class="code-block">
-<span class="type">KinematicsProcElectro</span> <span class="func">kine</span>(&hepmc, <span class="string">"rec_"</span>);
+<span class="comment">// --- A. Define Roles (For Truth Matching) ---</span>
+<span class="keyword">const int</span> Role_ScatEle = 2;
+<span class="keyword">const int</span> Role_Proton  = 3;
 
-<span class="comment">// --- A. Select Candidates (Filter Input Arrays) ---</span>
-<span class="comment">// "ele" = 1st, 2nd... instance of PID 11</span>
-hepmc.<span class="func">setParticleCandidates</span>(<span class="string">"ele"</span>, <span class="string">"rec_"</span>, rad::index::useNthOccurance(1, 11)); 
-hepmc.<span class="func">setParticleCandidates</span>(<span class="string">"pos"</span>, <span class="string">"rec_"</span>, rad::index::useNthOccurance(1, -11));
-hepmc.<span class="func">setParticleCandidates</span>(<span class="string">"p"</span>,   <span class="string">"rec_"</span>, rad::index::useNthOccurance(1, 2212));
+<span class="comment">// --- B. Select Candidates ---</span>
+<span class="comment">// "scat_ele" = All Rec tracks with PID 11</span>
+reaction.<span class="func">SetParticleCandidates</span>(<span class="string">"scat_ele"</span>, Role_ScatEle, rad::index::FilterIndices(11), {<span class="string">"rec_pid"</span>});
+reaction.<span class="func">SetParticleCandidates</span>(<span class="string">"p"</span>, Role_Proton, rad::index::FilterIndices(2212), {<span class="string">"rec_pid"</span>});
 
-<span class="comment">// --- B. Create Composite Particles ---</span>
+<span class="comment">// --- C. Configure Master Processor ---</span>
+<span class="type">KinematicsProcessor</span> <span class="func">kine</span>(&reaction, <span class="string">"rec_"</span>);
+
+<span class="comment">// --- D. Create Composite Particles ---</span>
 <span class="comment">// J/psi -> e+ e- (Sum)</span>
 kine.<span class="func">Creator</span>().<span class="func">Sum</span>(<span class="string">"Jpsi"</span>, {{<span class="string">"ele"</span>}, {<span class="string">"pos"</span>}});
 
 <span class="comment">// Missing Neutron -> (Beam + Target) - (ScatEle + JPsi)</span>
 kine.<span class="func">Creator</span>().<span class="func">Diff</span>(<span class="string">"miss_n"</span>, {{<span class="string">"beam_ele"</span>, <span class="string">"tar_ion"</span>}, {<span class="string">"scat_ele"</span>, <span class="string">"Jpsi"</span>}});
 
-<span class="comment">// --- C. Grouping for Reaction Physics ---</span>
-<span class="comment">// Defines vertices for t-channel calculations (Meson/Baryon split)</span>
-hepmc.<span class="func">setBaryonParticles</span>({<span class="string">"p"</span>});
-hepmc.<span class="func">setMesonParticles</span>({<span class="string">"Jpsi"</span>});
-
-<span class="comment">// --- D. Initialize (Triggers Combinatorial Sort) ---</span>
-kine.<span class="func">Init</span>();
+<span class="comment">// --- E. Grouping for Physics ---</span>
+<span class="comment">// Defines systems for Mandelstam calculations</span>
+kine.<span class="func">SetBaryonParticles</span>({<span class="string">"p"</span>});
+kine.<span class="func">SetMesonParticles</span>({<span class="string">"Jpsi"</span>});
     </div>
   </section>
 
@@ -103,31 +100,41 @@ kine.<span class="func">Mass</span>(<span class="string">"M_Jpsi"</span>, {<span
 kine.<span class="func">Mass</span>(<span class="string">"MM_neutron"</span>, {<span class="string">"miss_n"</span>}); 
 
 <span class="comment">// --- Custom Physics Kernels ---</span>
-<span class="type">KineCalculation</span> <span class="func">t_prime</span>(kine, <span class="string">"t_prime"</span>, physics::TPrime);
+kine.<span class="func">RegisterCalc</span>(<span class="string">"t_prime"</span>, physics::TPrime);
     </div>
   </section>
 
   <section class="mb-20">
-    <h2 class="section-title"><span class="step-number">4</span>Multiple Hypotheses (Linked)</h2>
+    <h2 class="section-title"><span class="step-number">4</span>Cloning & Execution</h2>
     <div class="rad-card p-6 border-yellow-300 bg-yellow-50">
-        <p class="mb-2 text-yellow-900 font-bold">The Power Move: InitLinked</p>
+        <p class="mb-2 text-yellow-900 font-bold">The Master/Clone Workflow</p>
         <p class="text-sm text-yellow-800">
-            Compare "Missing Mass" vs "Detected Mass" topologies simultaneously without re-running combinatorial sorting.
+            Define your analysis ONCE on the Master (Rec). Clone it for Truth and other hypotheses. 
+            Initializing the Master automatically initializes the entire tree.
         </p>
     </div>
     <div class="code-block">
-<span class="comment">// 1. Create a "Child" processor with suffix "_miss"</span>
-<span class="type">KinematicsProcElectro</span> <span class="func">kine_miss</span>(kine, <span class="string">"_miss"</span>);
+<span class="comment">// 1. Stream Cloning (Rec -> Truth)</span>
+<span class="comment">// Automatically ports groups (e.g. "rec_Jpsi" -> "mc_Jpsi")</span>
+<span class="keyword">auto</span> kine_tru = kine.<span class="func">CloneForType</span>(rad::consts::data_type::Truth());
 
-<span class="comment">// 2. Override the definition of the "Baryon" slot</span>
-<span class="comment">// Use the missing neutron instead of the detected proton</span>
-kine_miss.<span class="func">Creator</span>().<span class="func">OverrideGroup</span>(rad::consts::OrderBaryons(), {<span class="string">"miss_n"</span>});
+<span class="comment">// 2. Hypothesis Cloning (Linked)</span>
+<span class="comment">// Compare "Detected Proton" (Master) vs "Missing Proton" (Clone)</span>
+<span class="keyword">auto</span> kine_miss = kine.<span class="func">CloneLinked</span>(<span class="string">"_miss"</span>);
 
-<span class="comment">// 3. Link (Skip sorting!)</span>
-kine_miss.<span class="func">InitLinked</span>(kine);
+<span class="comment">// Override: Use missing mass vector for Baryon definition</span>
+kine_miss-><span class="func">SetBaryonParticles</span>({<span class="string">"miss_n"</span>});
+kine_miss-><span class="func">RegisterCalc</span>(<span class="string">"t_alt"</span>, physics::TBot);
 
-<span class="comment">// 4. Calculate variables for this hypothesis ("rec_t_prime_miss")</span>
-<span class="type">KineCalculation</span> <span class="func">tp_miss</span>(kine_miss, <span class="string">"t_prime"</span>, physics::TPrime);
+<span class="comment">// 3. Truth for the Missing Hypothesis</span>
+<span class="keyword">auto</span> kine_miss_tru = kine_miss-><span class="func">CloneForType</span>(rad::consts::data_type::Truth());
+
+<span class="comment">// 4. EXECUTION (Cascade)</span>
+<span class="comment">// Calling Init() on the Master triggers all clones automatically.</span>
+kine.<span class="func">Init</span>();
+
+<span class="comment">// 5. Save</span>
+reaction.<span class="func">Snapshot</span>(<span class="string">"output.root"</span>);
     </div>
   </section>
 
