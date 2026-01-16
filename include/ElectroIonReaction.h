@@ -3,7 +3,6 @@
 #include "ConfigReaction.h"
 #include "RVecHelpers.h"
 #include "BasicKinematics.h"
-#include "Beams.h"
 #include "CommonDefines.h"
 #include "ParticleInjector.h" 
 

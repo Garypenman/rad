@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Beams.h"
 #include "BasicKinematics.h"
 #include "ConfigReaction.h"
 #include "DefineNames.h" 
