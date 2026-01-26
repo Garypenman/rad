@@ -29,6 +29,8 @@ namespace rad {
       ConfigReaction(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns);
       ConfigReaction(const std::string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns);
       ConfigReaction(ROOT::RDataFrame rdf);
+      ConfigReaction(ROOT::RDF::RNode rdf);
+
 
       // =======================================================================
       // Truth Matching Interface
@@ -51,16 +53,37 @@ namespace rad {
       TruthMatchRegistry& GetTruthMatchRegistry() { return _truthMatchRegistry; }
 
       /**
-       * @brief Generates the combinatorial truth flag "is_signal_combi".
+       * @brief Generates the combinatorial truth flag TruthMatchedCombi().
        * @param matchIdCol The column containing Truth IDs (e.g. "rec_match_id").
        * @param type The prefix of the candidates to check (Default: "rec_").
        */
-      void DefineTrueMatchedCombi(const std::string& matchIdCol, const std::string& type = rad::consts::data_type::Rec());
+      void DefineTrueMatchedCombi(const std::string& matchIdCol, const std::string& type);
 
+      /** @brief Get the standard name for the matching column (e.g. "rec_match_id"). */
+      virtual std::string GetMatchName(const std::string& type) const {
+        // Standard convention: prefix + "match_id"
+        return type + "match_id";
+      }
+
+      /** @brief Define Signal Combination flag using standard naming. 
+       * @details Requires 'SetParticleCandidates' to have been called with truth roles.
+       */
+      void DefineTrueMatchedCombi(const std::string& type) {
+        std::string col = GetMatchName(type);
+        if(ColumnExists(col)) {
+	  DefineTrueMatchedCombi(col, type);
+        } else {
+	  // If no matching column exists (e.g. Data or Truth stream), 
+	  // define a default "Always True" signal flag so snapshots don't break.
+	  std::cout<<"[ConfigReaction] DefineTrueMatchCombi " <<col<<" does not exist all set TruthMatchedCombi()=1 for all."<< std::endl;
+	  Define(consts::TruthMatchedCombi(), "1"); 
+        }
+      }
+      
       // --- Symmetry Interface ---
       template<typename... Args>
       void SetSymmetryParticles(Args... args) {
-          std::vector<std::string> group = {args...};
+	std::vector<std::string> group = {args...};
           if(group.size() > 1) _symmetryGroups.push_back(group);
       }
 
@@ -68,7 +91,8 @@ namespace rad {
       void AddType(const std::string& atype);
       void ValidateType(const std::string& type) const;
       std::vector<std::string> GetTypes() const;
-
+      bool TypeExists(const std::string& type) const;
+      
       // --- Candidate Definition ---
       void SetParticleCandidatesExpr(const std::string& name, const std::string& type, const std::string& expression);
 
@@ -93,6 +117,7 @@ namespace rad {
       
       template<typename Lambda>
       void SetParticleCandidates(const std::string& name, int truthRole, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns) {//use default type and mcmatch
+	cout<< "SetParticleCandidates "<< name<<endl;
 	SetParticleTruthMatch(name,truthRole, GetDefaultType(),func, columns);
       }
       
@@ -161,6 +186,7 @@ namespace rad {
     inline ConfigReaction::ConfigReaction(const std::string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns)
       : RDFInterface(treeName, filenames, columns) {}
     inline ConfigReaction::ConfigReaction(ROOT::RDataFrame rdf) : RDFInterface(rdf) {}
+    inline ConfigReaction::ConfigReaction(ROOT::RDF::RNode rdf) : RDFInterface(rdf) {}
 
     // --- Candidate Definition & Truth ---
 
@@ -173,28 +199,30 @@ namespace rad {
     // Lambda now iterates over the RVecI (pIndices) which represents the combinations
     inline void ConfigReaction::DefineTrueMatchedCombi(const std::string& matchIdCol, const std::string& type) {
         std::string logic = "";
-        
+	cout<<"ConfigReaction::DefineTrueMatchedCombi  "<<type<<endl;
+	
         for (auto const& match : _truthMatchRegistry.GetParticleMatches()) {
             const std::string& name = match.first; 
             int role = match.second;
             
-            std::string flagName = name + "_is_true" + DoNotWriteTag();
+            std::string flagName = name + "_is_true";// + DoNotWriteTag();
             std::string colName = type + name; // e.g. "rec_ele"
             
             // Check: pIndices[i] is the candidate index for the i-th combination.
             // matchIds is the array of truth IDs for ALL tracks.
             Define(flagName, 
                 [role](const Indices_t& pIndices, const Indices_t& matchIds) {
-                    Indices_t result(pIndices.size());
-                     for(size_t i = 0; i < pIndices.size(); ++i) {
-                         int pIdx = pIndices[i];
-                        if (pIdx >= 0  && matchIds[pIdx] == role) {
-                             result[i] = 1;
-                         } else {
-                             result[i] = 0;
-                         }
-                     }
-                    return result;
+		  using namespace ROOT::VecOps;
+
+		  // Create a mask of valid indices (filters out -1)
+		  auto valid = pIndices >= 0;
+		  auto currentMatches = Take(matchIds, pIndices);
+		  
+		  // Logic: (Is match?) AND (Was index valid?)
+		  //    RVec logic operations automatically return vectors of 1s and 0s.
+		  return (currentMatches == role) && valid;
+    
+              
                 }, 
                 {colName, matchIdCol});
 
@@ -203,7 +231,7 @@ namespace rad {
         }
 
         if(logic.empty()) logic = "1";
-        Define("is_signal_combi", logic);
+	Define(consts::TruthMatchedCombi(), logic);
     }
 
     // ... [Rest of implementation remains unchanged] ...
@@ -252,6 +280,7 @@ namespace rad {
       if (_types.empty()) throw std::runtime_error("MakeCombinations: No types registered via AddType.");
       _isCombinatorialMode = true;
 
+      cout<<"ConfigReaction::MakeCombinations "<<_types.size()<<endl;
       for (const auto& type : _types) {
           ROOT::RDF::ColumnNames_t candidateCols;
           std::vector<std::string> rawNames; 
@@ -272,6 +301,8 @@ namespace rad {
                   collect(name);
               }
           }
+
+	  cout<<"ConfigReaction::MakeCombinations "<<candidateCols.size()<<endl;
           if (candidateCols.empty()) continue; 
 
           std::string comboColName = type + consts::ReactionCombos();
@@ -295,9 +326,18 @@ namespace rad {
           }
 
           for(size_t ip=0; ip < candidateCols.size(); ++ip) {
-              Redefine(candidateCols[ip], [ip](const RVecIndices& part_combos){ return part_combos[ip]; }, {comboColName});
+	    Redefine(candidateCols[ip], [ip](const RVecIndices& part_combos){ return part_combos[ip]; }, {comboColName});
+	    
           }
       }
+      //Now have defined particle indices for all types in terms of combis
+      //Apply truth matching if configured
+      if( _truthMatchRegistry.GetParticleMatches().empty()==false ){
+	if(TypeExists(consts::data_type::Rec())){
+	  DefineTrueMatchedCombi(consts::data_type::Rec());
+	}
+      }
+
     }
 
     // --- Grouping Logic ---
@@ -383,12 +423,16 @@ namespace rad {
     }
     inline void ConfigReaction::AddType(const std::string& atype) {
       if(_primary_type.empty()) _primary_type = atype;
-      _type_comps[atype][consts::P4Components()] = Form("%spx,%spy,%spz,%sm", atype.data(), atype.data(), atype.data(), atype.data());
-      _type_comps[atype][consts::P3Components()] = Form("%spx,%spy,%spz", atype.data(), atype.data(), atype.data());
+      _type_comps[atype][consts::P4Components()] = Form("%s%s,%s%s,%s%s,%s%s", atype.data(),consts::NamePx().data(), atype.data(),consts::NamePy().data(), atype.data(), consts::NamePz().data(),atype.data(),consts::NameM().data());
+      _type_comps[atype][consts::P3Components()] = Form("%s%s,%s%s,%s%s", atype.data(),consts::NamePx().data(), atype.data(),consts::NamePy().data(), atype.data(), consts::NamePz().data());
       _types.push_back(atype);
     }
     inline void ConfigReaction::ValidateType(const std::string& type) const {
       if (std::find(_types.begin(), _types.end(), type) == _types.end()) throw std::invalid_argument("Error: Data type '" + type + "' is not registered.");
+    }
+  inline bool ConfigReaction::TypeExists(const std::string& type) const {
+      if (std::find(_types.begin(), _types.end(), type) == _types.end()) return false;
+      return true;
     }
     inline std::vector<std::string> ConfigReaction::GetTypes() const { return _types; }
 

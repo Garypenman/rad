@@ -85,10 +85,10 @@ namespace rad {
     void Define(KinematicsProcessor* processor);
 
   private:
-    enum class Type { Map, Index };
+    enum class KernelType { Map, Index };
     
     std::string _name;
-    Type _type;
+    KernelType _kern_type;
     
     // Storage (Only one function pointer is active based on _type)
     MapKernel   _mapFunc = nullptr;
@@ -101,10 +101,10 @@ namespace rad {
   // =========================================================================
 
   inline KineCalculation::KineCalculation(std::string name, MapKernel func) 
-      : _name(name), _mapFunc(func), _type(Type::Map) {}
+      : _name(name), _mapFunc(func), _kern_type(KernelType::Map) {}
 
   inline KineCalculation::KineCalculation(std::string name, IndexKernel func, std::vector<ParticleNames_t> particles)
-      : _name(name), _indexFunc(func), _particles(particles), _type(Type::Index) {}
+      : _name(name), _indexFunc(func), _particles(particles), _kern_type(KernelType::Index) {}
 
 } // namespace rad
 

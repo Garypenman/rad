@@ -1,6 +1,12 @@
 /**
  * @file SnapshotCombi.h
  * @brief Custom RDataFrame Action to write "Flat" TTrees from combinatorial data.
+ * @details 
+ * This action allows RDataFrame to save combinatorial data (Rec) and scalar data (Truth)
+ * into a single flat TTree.
+ * - Handles multi-threading via ROOT::TBufferMerger.
+ * - Supports automatic broadcasting of scalar values (size 1) to match vector sizes.
+ * - Performs safety checks on vector sizes to prevent index out-of-bounds errors.
  */
 
 #pragma once
@@ -31,10 +37,21 @@ namespace io {
     template <typename T> struct IsRVec<ROOT::VecOps::RVec<T>> : std::true_type {};
     template <typename T> inline constexpr bool IsRVec_v = IsRVec<T>::value;
 
+    /**
+     * @class SnapshotCombi
+     * @brief RDataFrame Action that flattens combinatorial vectors into a TTree.
+     */
     class SnapshotCombi : public ROOT::Detail::RDF::RActionImpl<SnapshotCombi> {
     public:
         using Result_t = unsigned long;
 
+        /**
+         * @brief Constructor.
+         * @param filename Output ROOT file name.
+         * @param treename Output TTree name.
+         * @param colNames List of branch names to create.
+         * @param colTypes List of types corresponding to the branches.
+         */
         SnapshotCombi(const std::string& filename, const std::string& treename, 
                       const std::vector<std::string>& colNames,
                       const std::vector<ColType>& colTypes);
@@ -44,13 +61,28 @@ namespace io {
 
         std::string GetActionName();
         
+        /** @brief Resets counters and opens the TBufferMerger. */
         void Initialize();
+        
+        /** @brief Called at the start of each thread's processing slot. */
         void InitTask(TTreeReader*, unsigned int slot);
+        
+        /** @brief Called at the end of each thread's processing slot. Writes thread-local buffers. */
         void FinalizeTask(unsigned int slot); 
+        
+        /** @brief Called at the end of the event loop. Merges files and writes the final tree. */
         void Finalize();
 
+        /** @brief Returns pointer to the total entry count. */
         std::shared_ptr<Result_t> GetResultPtr() const;
 
+        /**
+         * @brief Per-event execution function.
+         * @details Iterates over the "Mask" column (last argument) and fills the tree 
+         * for each valid combination index.
+         * @param slot Thread slot ID.
+         * @param args Variadic list of column values + Mask.
+         */
         template <typename... Args>
         void Exec(unsigned int slot, const Args&... args);
 
@@ -63,7 +95,7 @@ namespace io {
         std::shared_ptr<ROOT::TBufferMerger> _merger;
         std::shared_ptr<unsigned long> _totalCount; 
         
-        std::vector<unsigned long> _slotCounts;     
+        std::vector<unsigned long> _slotCounts;      
 
         using Value_t = std::variant<double, float, int, unsigned int, short, bool, long long>;
         using Buffer_t = std::vector<Value_t>;
@@ -79,9 +111,13 @@ namespace io {
         template <size_t I, typename T>
         void set_value(unsigned int slot, int idx, const T& input);
 
+        /** @brief Helper for scalar inputs (returns value directly). */
         template <typename T>
         auto get_flat_val(const T& input, int idx);
 
+        /** * @brief Helper for vector inputs (returns input[idx] or broadcasts input[0]). 
+         * @throws std::runtime_error if index exceeds vector size (and size != 1).
+         */
         template <typename T>
         auto get_flat_val(const ROOT::VecOps::RVec<T>& input, int idx);
     };
@@ -263,6 +299,21 @@ namespace io {
     
     template <typename T>
     inline auto SnapshotCombi::get_flat_val(const ROOT::VecOps::RVec<T>& input, int idx) {
+        // CASE A: Broadcast (Scalar-in-Vector)
+        // If the vector has size 1 (e.g. Truth variable), broadcast it to all Rec combinations.
+        if (input.size() == 1) {
+            return input[0];
+        }
+
+        // CASE B: Combinatorial Data
+        // If the vector is larger, it must match the combinatorial indexing.
+        // Safety Check:
+        if (idx >= (int)input.size()) {
+             throw std::runtime_error("[SnapshotCombi] Index Mismatch! "
+                 "Combinatorial mask index " + std::to_string(idx) + 
+                 " exceeds column size " + std::to_string(input.size()) + 
+                 ". Check if a scalar column was not broadcast correctly.");
+        }
         return input[idx];
     }
 

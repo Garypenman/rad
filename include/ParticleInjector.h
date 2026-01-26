@@ -169,7 +169,7 @@ namespace rad {
             for(size_t i = 0; i < _colNames.size(); ++i) {
                 std::string finalName = prefix + _colNames[i];
                 std::string type      = _colTypes[_colNames[i]];
-                
+                if(_colNames[i]=="m")cout<<"ParticleInjector::CreateUnifiedVectors() " <<finalName<<" "<<type<<endl;
                 // Collect the temporary column names from all sources for this property
                 std::vector<std::string> colsToMerge;
                 for(const auto& src : sources) {
@@ -183,7 +183,8 @@ namespace rad {
                 // Generates code: rad::util::Concatenate< type >( col1, col2, ... )
                 // This relies on the JIT compiler to instantiate the correct template specialization.
                 std::string call = "rad::util::Concatenate<" + type + ">(" + args + ")";
-                
+		if(_colNames[i]=="m")cout<<"ParticleInjector::CreateUnifiedVectors() " <<call<<endl;
+              
                 // Define the final unified column
                 _reaction->Define(finalName, call);
             }

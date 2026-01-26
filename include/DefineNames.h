@@ -96,7 +96,12 @@ namespace rad{
     const std::string  P4Components() {return "components_p4";}
     const std::string  P3Components() {return "components_p3";}
    
-
+    const std::string  NamePx() {return "px";}
+    const std::string  NamePy() {return "py";}
+    const std::string  NamePz() {return "pz";}
+    const std::string  NameM() {return "m";}
+    const std::string  NamePid() {return "pid";}
+  
  
     /**
      * Types of data
@@ -107,6 +112,7 @@ namespace rad{
       const std::string  MC() {return "mc_";}
       const std::string  Kine() {return "kine_";}
     }
-    
-  }//names
+
+    const std::string TruthMatchedCombi() {return "isTruth";}
+  }//consts
 }//rad

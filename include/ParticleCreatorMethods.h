@@ -1,5 +1,6 @@
 #pragma once
 #include "CommonDefines.h"
+#include "BasicKinematics.h"
 
 namespace rad{
 
@@ -28,7 +29,6 @@ namespace rad{
    */
   inline void ParticleCreateBySum(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &m) {
       const auto& ipos = indices[0];
-      
       auto p4 = FourVector(ipos,px,py,pz,m);
 
       px[position] = p4.X();

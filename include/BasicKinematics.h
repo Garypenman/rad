@@ -107,13 +107,14 @@ namespace rad {
   ResultType_t FourVectorMassCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const auto& ipos = indices[0];
     const auto& ineg = indices[1];
-    
+ 
     // Note: Assuming error checking for invalid indices is performed in the wrapper or upstream.
     
     PxPyPzMVector psum(0,0,0,0);
     SumFourVector(psum, ipos, px, py, pz, m);
     SubtractFourVector(psum, ineg, px, py, pz, m);
 
+    cout<<"FourVectorMassCalc "<<ipos<<" "<<ineg<<" "<<pz<<" "<<m<<" "<< psum.M()<<endl;
     return psum.M();
   }
 

@@ -81,6 +81,11 @@ namespace rad {
          */
         RDFInterface(ROOT::RDataFrame rdf);
         
+         /**
+         * @brief Wraps an existing RDataFrame object.
+         */
+        RDFInterface(ROOT::RDF::RNode rdf);
+        
         /**
          * @brief Destructor. Executes any pending deferred actions (Lazy Snapshots).
          */
@@ -181,6 +186,13 @@ namespace rad {
        */
       void TriggerSnapshots();
       
+      /** * @brief Clears pending snapshot triggers. 
+       * @details Essential when cloning a reaction to avoid duplicating the parent's output actions.
+       */
+      void ClearTriggers() { 
+        _triggerSnapshots.clear(); 
+      }
+
       // --- Metadata & Utilities ---
 
         std::string GetTreeName() const;
@@ -244,6 +256,11 @@ namespace rad {
 
     inline RDFInterface::RDFInterface(ROOT::RDataFrame rdf) 
           : _orig_df{rdf}, _curr_df{rdf}, _base_df{rdf} 
+    {
+        _orig_col_names = _orig_df.GetColumnNames();
+    }
+   inline RDFInterface::RDFInterface(ROOT::RDF::RNode rdf) 
+     : _orig_df(0), _curr_df{rdf}, _base_df{rdf} 
     {
         _orig_col_names = _orig_df.GetColumnNames();
     }

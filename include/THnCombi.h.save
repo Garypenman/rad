@@ -10,7 +10,7 @@
  * Scalars are "broadcast" (repeated) against the vector size.
  * * 3. **Masked Execution (Lazy Filtering):** Efficiently supports a "Good Combinations" mask (from `PhysicsSelection`). If enabled, 
  * it only loops over valid indices, preventing "Ghost Data" (NaNs/InvalidEntries) from 
- * polluting the histograms.
+ * polluting the histograms. Automatically handles both Vector masks (RVec) and Scalar masks (Bool).
  */
 
 #pragma once
@@ -51,6 +51,13 @@ namespace rad {
     template<typename T> 
     inline double get_val(const T& t, size_t) { return static_cast<double>(t); }
 
+    /** @brief SFINAE Trait to detect if a type is iterable (like RVec). */
+    template<typename T, typename = void>
+    struct is_iterable : std::false_type {};
+
+    template<typename T>
+    struct is_iterable<T, std::void_t<decltype(std::begin(std::declval<T>())), 
+                                      decltype(std::end(std::declval<T>()))>> : std::true_type {};
 
     // =========================================================================
     // CLASS DEFINITION
@@ -60,7 +67,9 @@ namespace rad {
      * @class THnCombi
      * @brief RDataFrame Action for filling THnSparse histograms.
      * * @tparam HasMask Boolean flag controlling execution mode.
-     * - If `true`: The **LAST** argument passed to `Exec` is treated as an `RVec<int>` mask of valid indices.
+     * - If `true`: The **LAST** argument passed to `Exec` is treated as a mask.
+     * - If Mask is Vector: Iterates over indices provided.
+     * - If Mask is Scalar: Checks boolean, if true iterates over all data.
      * - If `false`: All entries in the input vectors are processed (0 to N).
      */
     template <bool HasMask>
@@ -123,7 +132,7 @@ namespace rad {
          * @param t The tuple of input arguments.
          */
         template <typename Tuple, size_t... Is>
-        void fill_row(ROOT::RVecD& x, int idx, const Tuple& t, std::index_sequence<Is...>);
+        void fill_row(std::vector<double>& x, int idx, const Tuple& t, std::index_sequence<Is...>);
 
         /**
          * @brief Helper: Determines the maximum size among the data columns.
@@ -186,46 +195,58 @@ namespace rad {
     template <bool HasMask>
     template <typename... Args>
     inline void THnCombi<HasMask>::Exec(unsigned int slot, const Args&... args) {
- if constexpr (sizeof...(Args) > 0) {
+        // SAFETY GUARD: RDataFrame internal SFINAE checks may instantiate Exec with 0 args.
+        // We must prevent compilation of the logic body in that case.
+        if constexpr (sizeof...(Args) > 0) {
+            
+            // Pack variadic arguments into a tuple for indexed access
             auto all_args = std::forward_as_tuple(args...);
+            
+            // Calculate NData dynamically based on provided arguments.
             constexpr size_t NArgs = sizeof...(Args);
 
+            // Logic separation based on Masking mode
             if constexpr (HasMask) {
                 // --- MASKED MODE ---
+                static_assert(NArgs >= 1, "THnCombi<true>: Exec called with no mask column.");
+                
                 constexpr size_t NData = NArgs - 1;
-                const auto& mask_ref = std::get<NData>(all_args); 
-                ROOT::RVecD x(NData);
+                const auto& mask_ref = std::get<NData>(all_args); // Get Mask (Last Arg)
 
+                // Static buffer to avoid reallocation. 
+                std::vector<double> x(NData);
+
+                // Determine Mask Type (Vector vs Scalar) at Compile Time
                 using MaskT = std::decay_t<decltype(mask_ref)>;
 
-                // Robust check: Is the mask a Vector (RVec) or Scalar (bool/int)?
-                //if constexpr (is_iterable<MaskT>::value) {
-                    // CASE 1: Mask is a Boolean Vector [0, 1, 0...]
-                    // We iterate through indices i=0..N. 
-                    // If mask[i] is true, we fill the histogram using data at index i.
-                    size_t n_mask = mask_ref.size();
-                    for (size_t i = 0; i < n_mask; ++i) {
-                        if (mask_ref[i]) { 
-                             fill_row(x, i, all_args, std::make_index_sequence<NData>{});
-                             _hists[slot]->Fill(x.data());
+                if constexpr (is_iterable<MaskT>::value) {
+                    // [Diagram: Vector Mask]
+                    // We iterate ONLY over the indices provided by the mask.
+                    for (auto idx : mask_ref) {
+                        fill_row(x, idx, all_args, std::make_index_sequence<NData>{});
+                        _hists[slot]->Fill(x.data());
+                    }
+                } else {
+                    // [Diagram: Scalar Mask]
+                    // If mask is Scalar True, we must process ALL data entries.
+                    // We deduce the loop range from the data columns.
+                    if (mask_ref) {
+                        size_t n_entries = get_max_size(all_args, std::make_index_sequence<NData>{});
+                        for (size_t i = 0; i < n_entries; ++i) {
+                            fill_row(x, i, all_args, std::make_index_sequence<NData>{});
+                            _hists[slot]->Fill(x.data());
                         }
                     }
-                // } else {
-                //     // CASE 2: Mask is Scalar (e.g. global event cut)
-                //     if (mask_ref) {
-                //         size_t n_entries = get_max_size(all_args, std::make_index_sequence<NData>{});
-                //         for (size_t i = 0; i < n_entries; ++i) {
-                //             fill_row(x, i, all_args, std::make_index_sequence<NData>{});
-                //             _hists[slot]->Fill(x.data());
-                //         }
-                //     }
-                // }
+                }
             } 
             else {
                 // --- UNMASKED MODE ---
                 constexpr size_t NData = NArgs;
+                
+                // Process all entries. We must determine the loop size.
+                // The size is the maximum size of any vector input (handling scalar broadcasting).
                 size_t n_entries = get_max_size(all_args, std::make_index_sequence<NData>{});
-                ROOT::RVecD x(NData);
+                std::vector<double> x(NData);
                 
                 for (size_t i = 0; i < n_entries; ++i) {
                     fill_row(x, i, all_args, std::make_index_sequence<NData>{});
@@ -239,7 +260,7 @@ namespace rad {
 
     template <bool HasMask>
     template <typename Tuple, size_t... Is>
-    inline void THnCombi<HasMask>::fill_row(ROOT::RVecD& x, int idx, const Tuple& t, std::index_sequence<Is...>) {
+    inline void THnCombi<HasMask>::fill_row(std::vector<double>& x, int idx, const Tuple& t, std::index_sequence<Is...>) {
         int col = 0;
         // Fold expression: executes get_val for each column index I in Is, populating the vector x
         ((x[col++] = get_val(std::get<Is>(t), idx)), ...);
