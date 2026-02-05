@@ -6,8 +6,8 @@
 
 namespace rad {
 
-    using AuxCacheD = std::vector<ROOT::RVecD>; 
-    using AuxCacheI = std::vector<ROOT::RVec<Long64_t>>;
+    using AuxCacheD = ROOT::RVec<ROOT::RVecD>; 
+    using AuxCacheI = ROOT::RVec<ROOT::RVec<Long64_t>>;
 
     /**
      * @class ModifierBase
@@ -178,8 +178,8 @@ namespace rad {
 
 //     // Aliases for the Local Auxiliary Cache
 //     // Structure: [Variable_Index][Particle_Index]
-//     using AuxCacheD = std::vector<ROOT::RVecD>; 
-//     using AuxCacheI = std::vector<ROOT::RVec<Long64_t>>;
+//     using AuxCacheD = ROOT::RVec<ROOT::RVecD>; 
+//     using AuxCacheI = ROOT::RVec<ROOT::RVec<Long64_t>>;
 
 //     /**
 //      * @brief Abstract Base Class for Momentum Modifiers.

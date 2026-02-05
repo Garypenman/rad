@@ -38,13 +38,30 @@ namespace rad {
     using std::string;
     using std::string_view;
 
+  namespace utils{
     /**
      * @brief Helper: Convert string_view to string safely.
      */
     inline std::string as_string(std::string_view v) { 
-        return {v.data(), v.size()}; 
+      return {v.data(), v.size()}; 
+    }
+    /**
+     * @brief Helper: Convert RVec to vector safely.
+     */
+    template<typename T>
+    inline std::vector<T> as_stdvector(const ROOT::RVec<T>& rvec){
+      // Create a fresh std::vector by copying elements from RVec
+      return std::vector<T>(rvec.begin(), rvec.end());
+    }
+    /**
+     * @brief Helper: Convert RVec to vector safely.
+     */
+    template<typename T>
+    inline   ROOT::RVec<T> as_rvec(const std::vector<T>& rvec){
+      return  ROOT::RVec<T>(rvec.begin(), rvec.end());;
     }
 
+  }
     /**
      * @brief Tag used to mark columns that should be excluded from automatic writing.
      */
@@ -55,6 +72,7 @@ namespace rad {
     // CLASS DECLARATION
     // =========================================================================
 
+   
     class RDFInterface {
 
     public:
@@ -236,18 +254,18 @@ namespace rad {
     : _orig_df{treeName, {fileNameGlob.data()}, columns}, 
       _curr_df{_orig_df}, 
       _base_df{_orig_df}, 
-      _treeName{as_string(treeName)}, 
-      _fileName{as_string(fileNameGlob)} 
+      _treeName{utils::as_string(treeName)}, 
+      _fileName{utils::as_string(fileNameGlob)} 
     {
         if (fileNameGlob.empty()) throw std::invalid_argument("RDFInterface: fileNameGlob cannot be empty.");
         _orig_col_names = _orig_df.GetColumnNames();
     }
 
     inline RDFInterface::RDFInterface(const string_view treeName, const ROOT::RVec<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns) 
-    : _orig_df{treeName, filenames, columns}, 
+      : _orig_df{treeName, utils::as_stdvector(filenames), columns}, 
       _curr_df{_orig_df}, 
       _base_df{_orig_df}, 
-      _treeName{as_string(treeName)}, 
+      _treeName{utils::as_string(treeName)}, 
       _fileNames{filenames} 
     {
         if (filenames.empty()) throw std::invalid_argument("RDFInterface: filenames list cannot be empty.");
@@ -332,7 +350,7 @@ namespace rad {
 
         // 3. Book Action
         rad::io::SnapshotCombi action(filename, treename, columns, types);
-        auto action_node = CurrFrame().Book(std::move(action), all_cols);
+        auto action_node = CurrFrame().Book(std::move(action),  utils::as_stdvector(all_cols));
 
         // 4. Register Trigger
         // Dereferencing the RResultPtr (now valid!) triggers the event loop.

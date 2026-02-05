@@ -386,9 +386,9 @@ namespace rad{
 //      */
 //     Indices_t EnumerateIndicesFrom(int istart, size_t size) {
         
-//         // 1. Create a temporary std::vector to hold the sequence.
-//         // We use std::vector because std::iota is defined for it.
-//         std::vector<int> temp_vec(size); 
+//         // 1. Create a temporary ROOT::RVec to hold the sequence.
+//         // We use ROOT::RVec because std::iota is defined for it.
+//         ROOT::RVec<int> temp_vec(size); 
         
 //         // 2. Fill the temporary vector with the sequence.
 //         // std::iota fills the range [temp_vec.begin(), temp_vec.end()) 
@@ -396,7 +396,7 @@ namespace rad{
 //         std::iota(temp_vec.begin(), temp_vec.end(), istart);
 
 //         // 3. Construct and return the Indices_t (ROOT::RVecI).
-//         // RVec has a constructor that efficiently copies/moves data from a std::vector.
+//         // RVec has a constructor that efficiently copies/moves data from a ROOT::RVec.
 //         return Indices_t(std::move(temp_vec));
 //     }
 //    /**

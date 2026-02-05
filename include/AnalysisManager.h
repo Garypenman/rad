@@ -448,7 +448,7 @@ namespace rad {
 /*             std::string finalName = filename.empty() ? _name + "_Tree.root" : filename; */
 /*             std::string finalPath = MakePath(finalName); */
 
-/*             std::vector<std::string> cols; */
+/*             ROOT::RVec<std::string> cols; */
             
 /*             // 1. Collect Primary Stream (Rec) */
 /*             if(_streams.count(_primaryStream)) { */
@@ -537,8 +537,8 @@ namespace rad {
 /*             return filename; */
 /*         } */
 
-/*         std::vector<std::string> CollectStreamColumns(const ProcessorClass& kine) { */
-/*             std::vector<std::string> cols; */
+/*         ROOT::RVec<std::string> CollectStreamColumns(const ProcessorClass& kine) { */
+/*             ROOT::RVec<std::string> cols; */
          
 /*             for(const auto& var : kine.GetDefinedNames()) { */
 /*                 cols.push_back(kine.GetPrefix() + var + kine.GetSuffix()); */

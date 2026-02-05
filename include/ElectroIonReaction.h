@@ -62,7 +62,7 @@ namespace rad {
          * @param filenames Vector of explicit file paths.
          * @param columns Optional list of columns to read.
          */
-        ElectroIonReaction(const std::string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns = {});
+        ElectroIonReaction(const std::string_view treeName, const ROOT::RVec<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns = {});
 
         /** * @brief Constructor for wrapping an existing RDataFrame.
          * @param rdf Existing RDataFrame node.
@@ -238,7 +238,7 @@ namespace rad {
     inline ElectroIonReaction::ElectroIonReaction(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns) 
         : ConfigReaction(treeName, fileNameGlob, columns) {}
 
-    inline ElectroIonReaction::ElectroIonReaction(const std::string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns) 
+    inline ElectroIonReaction::ElectroIonReaction(const std::string_view treeName, const ROOT::RVec<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns) 
         : ConfigReaction(treeName, filenames, columns) {}
 
     inline ElectroIonReaction::ElectroIonReaction(ROOT::RDataFrame rdf) 
@@ -437,7 +437,7 @@ using rad::electroion::PhotoFourVector;
 //     public:
 //       // --- Constructors ---
 //       ElectroIonReaction(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns ={} );
-//       ElectroIonReaction(const std::string_view treeName, const std::vector<std::string> &filenames, const ROOT::RDF::ColumnNames_t& columns ={} );
+//       ElectroIonReaction(const std::string_view treeName, const ROOT::RVec<std::string> &filenames, const ROOT::RDF::ColumnNames_t& columns ={} );
 //       ElectroIonReaction(ROOT::RDataFrame rdf);
 
 //       // --- Beam Component Definition ---
@@ -523,7 +523,7 @@ using rad::electroion::PhotoFourVector;
 //   inline ElectroIonReaction::ElectroIonReaction(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns) 
 //     : ConfigReaction{treeName,fileNameGlob,columns} {}
 
-//   inline ElectroIonReaction::ElectroIonReaction(const std::string_view treeName, const std::vector<std::string> &filenames, const ROOT::RDF::ColumnNames_t& columns) 
+//   inline ElectroIonReaction::ElectroIonReaction(const std::string_view treeName, const ROOT::RVec<std::string> &filenames, const ROOT::RDF::ColumnNames_t& columns) 
 //     : ConfigReaction{treeName,filenames,columns} {}
 
 //   inline ElectroIonReaction::ElectroIonReaction(ROOT::RDataFrame rdf) 

@@ -68,7 +68,7 @@ namespace rad {
      * @param func The generic C++ function pointer (IndexKernel).
      * @param particles Vector of particle name lists to bind to the kernel.
      */
-    KineCalculation(std::string name, IndexKernel func, std::vector<ParticleNames_t> particles);
+    KineCalculation(std::string name, IndexKernel func, ROOT::RVec<ParticleNames_t> particles);
 
     // =========================================================================
     // Execution
@@ -93,7 +93,7 @@ namespace rad {
     // Storage (Only one function pointer is active based on _type)
     MapKernel   _mapFunc = nullptr;
     IndexKernel _indexFunc = nullptr;
-    std::vector<ParticleNames_t> _particles;
+    ROOT::RVec<ParticleNames_t> _particles;
   };
 
   // =========================================================================
@@ -103,7 +103,7 @@ namespace rad {
   inline KineCalculation::KineCalculation(std::string name, MapKernel func) 
       : _name(name), _mapFunc(func), _kern_type(KernelType::Map) {}
 
-  inline KineCalculation::KineCalculation(std::string name, IndexKernel func, std::vector<ParticleNames_t> particles)
+  inline KineCalculation::KineCalculation(std::string name, IndexKernel func, ROOT::RVec<ParticleNames_t> particles)
       : _name(name), _indexFunc(func), _particles(particles), _kern_type(KernelType::Index) {}
 
 } // namespace rad

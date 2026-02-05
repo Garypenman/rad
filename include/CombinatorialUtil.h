@@ -52,7 +52,7 @@ namespace rad {
       // 1. Validation & Sizing
       if (combo_indices.empty()) return ROOT::RVec<T>{};
 
-      std::vector<UInt_t> n_particles;
+      ROOT::RVec<UInt_t> n_particles;
       n_particles.reserve(combo_indices.size());
 
       UInt_t n_combos = 0;
@@ -200,7 +200,7 @@ namespace rad {
 //       using T = std::invoke_result_t<F, const RVecIndices&, Args...>;       
  
 //       //check how many sets of combi indices this functions requires
-//       std::vector<UInt_t> n_particles;
+//       ROOT::RVec<UInt_t> n_particles;
 //       UInt_t n_combos = 0;
 //       for(const auto& indices:combo_indices){
 // 	n_particles.push_back(indices.size()); //indices.size = Number of particle indices

@@ -61,8 +61,8 @@ namespace rad {
 
          // --- Accessors ---
 
-        const std::vector<std::string>& GetAuxDoubleCols() const;
-        const std::vector<std::string>& GetAuxIntCols() const;
+        const ROOT::RVec<std::string>& GetAuxDoubleCols() const;
+        const ROOT::RVec<std::string>& GetAuxIntCols() const;
         Indice_t RegisterAuxDouble(const std::string& name);
         Indice_t RegisterAuxInt(const std::string& name);
 
@@ -72,11 +72,11 @@ namespace rad {
             std::shared_ptr<ModifierBase> modifier;
         };
 
-        std::vector<ModiConfig> _modi_configs; 
-        std::vector<std::shared_ptr<ModifierBase>> _active_modifiers; 
+        ROOT::RVec<ModiConfig> _modi_configs; 
+        ROOT::RVec<std::shared_ptr<ModifierBase>> _active_modifiers; 
         
-        std::vector<std::string> _aux_double_cols; 
-        std::vector<std::string> _aux_int_cols;    
+        ROOT::RVec<std::string> _aux_double_cols; 
+        ROOT::RVec<std::string> _aux_int_cols;    
     };
 
     // =================================================================================
@@ -138,8 +138,8 @@ namespace rad {
         }
     }
 
-    inline const std::vector<std::string>& ParticleModifier::GetAuxDoubleCols() const { return _aux_double_cols; }
-    inline const std::vector<std::string>& ParticleModifier::GetAuxIntCols() const { return _aux_int_cols; }
+    inline const ROOT::RVec<std::string>& ParticleModifier::GetAuxDoubleCols() const { return _aux_double_cols; }
+    inline const ROOT::RVec<std::string>& ParticleModifier::GetAuxIntCols() const { return _aux_int_cols; }
 
     inline Indice_t ParticleModifier::RegisterAuxDouble(const std::string& name) {
         auto it = std::find(_aux_double_cols.begin(), _aux_double_cols.end(), name);

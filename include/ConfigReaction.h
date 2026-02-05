@@ -353,13 +353,13 @@ namespace rad {
     }
     inline void ConfigReaction::SetMesonParticles(const std::string& type, const ROOT::RDF::ColumnNames_t& particles) {
       ValidateType(type);
-      if (particles.empty()) { Define(type + as_string(consts::Mesons()), [](){return RVecIndices{{consts::InvalidIndex()}}; }, {}); return; }
-      SetGroupParticles(as_string(consts::Mesons()), type, particles);
+      if (particles.empty()) { Define(type + utils::as_string(consts::Mesons()), [](){return RVecIndices{{consts::InvalidIndex()}}; }, {}); return; }
+      SetGroupParticles(utils::as_string(consts::Mesons()), type, particles);
     }
     inline void ConfigReaction::SetBaryonParticles(const std::string& type, const ROOT::RDF::ColumnNames_t& particles) {
       ValidateType(type);
-      if (particles.empty()) { Define(type + as_string(consts::Baryons()), [](){return RVecIndices{{consts::InvalidIndex()}}; }, {}); return; }
-      SetGroupParticles(as_string(consts::Baryons()), type, particles);
+      if (particles.empty()) { Define(type + utils::as_string(consts::Baryons()), [](){return RVecIndices{{consts::InvalidIndex()}}; }, {}); return; }
+      SetGroupParticles(utils::as_string(consts::Baryons()), type, particles);
     }
     inline void ConfigReaction::SetMesonParticles(const ROOT::RDF::ColumnNames_t& particles) { for(const auto& type : _types) SetMesonParticles(type, particles); }
     inline void ConfigReaction::SetBaryonParticles(const ROOT::RDF::ColumnNames_t& particles) { for(const auto& type : _types) SetBaryonParticles(type, particles); }
@@ -403,16 +403,16 @@ namespace rad {
     }
     inline void ConfigReaction::Snapshot(const std::string& filename) {
         RDFstep final_df = CurrFrame();
-        auto cols = final_df.GetDefinedColumnNames();
+        auto cols = utils::as_rvec(final_df.GetDefinedColumnNames());
         RemoveSnapshotColumns(cols);
-        final_df.Snapshot("rad_tree", filename, cols);
+        final_df.Snapshot("rad_tree", filename, utils::as_stdvector(cols));
     }
     inline void ConfigReaction::BookLazySnapshot(const std::string& filename) {
         RDFstep final_df = CurrFrame();
         ROOT::RDF::RSnapshotOptions opts; opts.fLazy = true;
-        auto cols = final_df.GetDefinedColumnNames();
+        auto cols = utils::as_rvec(final_df.GetDefinedColumnNames());
         RemoveSnapshotColumns(cols);
-        auto snapshot_result = final_df.Snapshot("rad_tree", filename, cols, opts);
+        auto snapshot_result = final_df.Snapshot("rad_tree", filename, utils::as_stdvector(cols), opts);
         _triggerSnapshots.emplace_back([snapshot = std::move(snapshot_result)]() mutable {});
     }
     inline void ConfigReaction::RemoveSnapshotColumns(ROOT::RVec<std::string>& cols) {

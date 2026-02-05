@@ -31,7 +31,7 @@ namespace combinatorics {
     template <std::size_t I, typename... ColTypes>
     struct CartesianProduct {
       static void Generate(const std::tuple<ColTypes...>& cols, 
-                           std::vector<int>& current_indices, 
+                           ROOT::RVec<int>& current_indices, 
                            Combis_t& result) {
         
         const auto& current_col = std::get<I>(cols);
@@ -50,7 +50,7 @@ namespace combinatorics {
     template <typename... ColTypes>
     struct CartesianProduct<sizeof...(ColTypes), ColTypes...> {
       static void Generate(const std::tuple<ColTypes...>&, 
-                           std::vector<int>& current_indices, 
+                           ROOT::RVec<int>& current_indices, 
                            Combis_t& result) {
         for (std::size_t i = 0; i < sizeof...(ColTypes); ++i) {
           result[i].push_back(current_indices[i]);
@@ -72,7 +72,7 @@ namespace combinatorics {
     
     // 2. Prepare Recursion
     auto cols_tuple = std::make_tuple(args...);
-    std::vector<int> current_indices(N_cols);
+    ROOT::RVec<int> current_indices(N_cols);
     
     impl::CartesianProduct<0, Args...>::Generate(cols_tuple, current_indices, result);
     
@@ -88,10 +88,10 @@ namespace combinatorics {
     /** * @brief Checks if the current set of indices satisfies the symmetry constraints.
      * @details Ensures that for any defined symmetry group {A, B}, the values verify val(A) < val(B).
      */
-    inline bool CheckSymmetry(const std::vector<int>& indices, 
-                              const std::vector<std::vector<std::string>>& /*raw_groups_unused*/, 
+    inline bool CheckSymmetry(const ROOT::RVec<int>& indices, 
+                              const ROOT::RVec<ROOT::RVec<std::string>>& /*raw_groups_unused*/, 
                               // Note: Logic below assumes groups are passed as vector<vector<int>> indices
-                              const std::vector<std::vector<int>>& groups) {
+                              const ROOT::RVec<ROOT::RVec<int>>& groups) {
       
       for (const auto& group : groups) {
         // Group contains column indices (e.g. {0, 1} for gamma1, gamma2)
@@ -109,8 +109,8 @@ namespace combinatorics {
     template <std::size_t I, typename... ColTypes>
     struct SymmetricProduct {
       static void Generate(const std::tuple<ColTypes...>& cols, 
-                           const std::vector<std::vector<int>>& groups,
-                           std::vector<int>& current_indices, 
+                           const ROOT::RVec<ROOT::RVec<int>>& groups,
+                           ROOT::RVec<int>& current_indices, 
                            Combis_t& result) {
         
         const auto& current_col = std::get<I>(cols);
@@ -124,8 +124,8 @@ namespace combinatorics {
     template <typename... ColTypes>
     struct SymmetricProduct<sizeof...(ColTypes), ColTypes...> {
       static void Generate(const std::tuple<ColTypes...>&, 
-                           const std::vector<std::vector<int>>& groups,
-                           std::vector<int>& current_indices, 
+                           const ROOT::RVec<ROOT::RVec<int>>& groups,
+                           ROOT::RVec<int>& current_indices, 
                            Combis_t& result) {
         // Here is the "Symmetry Filter"
         if (CheckSymmetry(current_indices, {}, groups)) {
@@ -161,12 +161,12 @@ namespace combinatorics {
     struct SymHelper<Last> {
         template <typename... CollectedCols>
         static Combis_t RecurseAndRun(std::tuple<CollectedCols...> cols, const Last& groups) {
-            // "Last" is expected to be std::vector<std::vector<int>> (or convertible)
+            // "Last" is expected to be ROOT::RVec<ROOT::RVec<int>> (or convertible)
             // "cols" is the tuple of all RVec columns.
             
             const std::size_t N_cols = sizeof...(CollectedCols);
             Combis_t result(N_cols);
-            std::vector<int> current_indices(N_cols);
+            ROOT::RVec<int> current_indices(N_cols);
             
             SymmetricProduct<0, CollectedCols...>::Generate(cols, groups, current_indices, result);
             return result;
@@ -229,7 +229,7 @@ namespace combinatorics {
 
 //     using ROOT::RVecI;
 //     using ROOT::RVec;
-//     using std::vector;
+//     using ROOT::RVec;
 //     using std::string;
 //     using rad::consts::InvalidEntry;
     
@@ -262,7 +262,7 @@ namespace combinatorics {
 
 //       // --- 1. Initial Setup and Pre-calculation ---
 //       // Determine the bounds for the N-dimensional counter
-//       std::vector<size_t> max_indices;
+//       ROOT::RVec<size_t> max_indices;
 //       max_indices.reserve(n_particles);
         
 //       size_t total_combos = 1;
@@ -273,7 +273,7 @@ namespace combinatorics {
 //       }
 
 //       // The N-dimensional counter (state of the current permutation)
-//       std::vector<size_t> current_indices(n_particles, 0);
+//       ROOT::RVec<size_t> current_indices(n_particles, 0);
 
 //       // --- 2. Initialize Transposed Output Structure ---
 //       RVecIndices result_by_particle(n_particles);
@@ -286,7 +286,7 @@ namespace combinatorics {
 //       // --- 3. Iterative Combinatorial Loop ---
       
 //       // We reuse these buffers to avoid malloc/free overhead for every combination.
-//       std::vector<int> current_combination_buffer(n_particles);
+//       ROOT::RVec<int> current_combination_buffer(n_particles);
 //       std::unordered_set<int> unique_checker;
 //       unique_checker.reserve(n_particles * 2); 
 

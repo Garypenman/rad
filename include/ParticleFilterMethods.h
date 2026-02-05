@@ -46,7 +46,7 @@ namespace rad {
     class FilterRange : public FilterBase {
     public:
         /** @brief Factory Ctor: params[0]=min, params[1]=max. */
-        FilterRange(const Indices_t& dRows, const Indices_t&, const std::vector<double>& params);
+        FilterRange(const Indices_t& dRows, const Indices_t&, const ROOT::RVec<double>& params);
         // Direct Ctor
         FilterRange(Indice_t row, double min, double max);
 
@@ -69,7 +69,7 @@ namespace rad {
     class FilterExact : public FilterBase {
     public:
         /** @brief Factory Ctor: params[0]=target_val. */
-        FilterExact(const Indices_t&, const Indices_t& iRows, const std::vector<double>& params);
+        FilterExact(const Indices_t&, const Indices_t& iRows, const ROOT::RVec<double>& params);
         // Direct Ctor
         FilterExact(Indice_t row, long long target);
 
@@ -91,7 +91,7 @@ namespace rad {
     class FilterBitCheck : public FilterBase {
     public:
         /** @brief Factory Ctor: params[0]=mask, params[1]=result(default 0). */
-        FilterBitCheck(const Indices_t&, const Indices_t& iRows, const std::vector<double>& params);
+        FilterBitCheck(const Indices_t&, const Indices_t& iRows, const ROOT::RVec<double>& params);
         // Direct Ctor
         FilterBitCheck(Indice_t row, long long mask, long long result);
 
@@ -111,7 +111,7 @@ namespace rad {
     // =========================================================
 
     // --- FilterRange ---
-    inline FilterRange::FilterRange(const Indices_t& dRows, const Indices_t&, const std::vector<double>& params) 
+    inline FilterRange::FilterRange(const Indices_t& dRows, const Indices_t&, const ROOT::RVec<double>& params) 
         : _row(dRows.empty() ? -1 : dRows[0]), 
           _min(params.size() > 0 ? params[0] : -1e99),
           _max(params.size() > 1 ? params[1] : 1e99) {}
@@ -138,7 +138,7 @@ namespace rad {
     }
 
     // --- FilterExact ---
-    inline FilterExact::FilterExact(const Indices_t&, const Indices_t& iRows, const std::vector<double>& params)
+    inline FilterExact::FilterExact(const Indices_t&, const Indices_t& iRows, const ROOT::RVec<double>& params)
         : _row(iRows.empty() ? -1 : iRows[0]), 
           _target(params.empty() ? 0 : static_cast<long long>(params[0])) {}
 
@@ -163,7 +163,7 @@ namespace rad {
     }
 
     // --- FilterBitCheck ---
-    inline FilterBitCheck::FilterBitCheck(const Indices_t&, const Indices_t& iRows, const std::vector<double>& params)
+    inline FilterBitCheck::FilterBitCheck(const Indices_t&, const Indices_t& iRows, const ROOT::RVec<double>& params)
         : _row(iRows.empty() ? -1 : iRows[0]), 
           _mask(params.size() > 0 ? static_cast<long long>(params[0]) : 0),
           _result(params.size() > 1 ? static_cast<long long>(params[1]) : 0) {} // Default checks if masked bit is 0

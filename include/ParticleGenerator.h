@@ -141,7 +141,7 @@ namespace rad{
        * @param masses Masses of the daughter particles.
        * @param parent Name of the parent particle.
        */
-      void GenerateTwoBody(const std::vector<std::string> &names,
+      void GenerateTwoBody(const ROOT::RVec<std::string> &names,
                            const ROOT::RVecD& masses, const string &parent){
 
         //combine masses vector to string
@@ -151,7 +151,7 @@ namespace rad{
         auto expr = Form( "rad::generator::ParticleCreateTwoBody(%s,%s",parent.data(), smasses.data());
 
         //create first decay particle
-        DefineParticle(names[0],std::vector<string>(),expr);
+        DefineParticle(names[0],ROOT::RVec<string>(),expr);
 
         //create second decay particle
         Diff(names[1],{parent},{names[0]});

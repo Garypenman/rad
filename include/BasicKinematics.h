@@ -29,7 +29,7 @@ namespace rad {
    * @return PxPyPzMVector The four-momentum vector (Px, Py, Pz, M).
    */
   template<typename Tp, typename Tm>
-  PxPyPzMVector FourVector(const uint idx, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline PxPyPzMVector FourVector(const uint idx, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     return PxPyPzMVector(px[idx], py[idx], pz[idx], m[idx]);
   }
 
@@ -45,7 +45,7 @@ namespace rad {
    * @param m The RVec of mass components.
    */
   template<typename Tp, typename Tm>
-  void SumFourVector(PxPyPzMVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline void SumFourVector(PxPyPzMVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     auto np = ip.size();
     for (size_t i = 0; i < np; ++i) {
       p4 += PxPyPzMVector(px[ip[i]], py[ip[i]], pz[ip[i]], m[ip[i]]);
@@ -64,7 +64,7 @@ namespace rad {
    * @param m The RVec of mass components.
    */
   template<typename Tp, typename Tm>
-  void SubtractFourVector(PxPyPzMVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {// 
+  inline void SubtractFourVector(PxPyPzMVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {// 
     auto np = ip.size();
     for (size_t i = 0; i <np ; ++i) {
       p4 -= PxPyPzMVector(px[ip[i]], py[ip[i]], pz[ip[i]], m[ip[i]]);
@@ -83,7 +83,7 @@ namespace rad {
    * @return PxPyPzMVector The summed four-momentum vector.
    */
   template<typename Tp, typename Tm>
-  PxPyPzMVector FourVector(const Indices_t &ipart, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline PxPyPzMVector FourVector(const Indices_t &ipart, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     PxPyPzMVector psum(0,0,0,0);
     SumFourVector(psum, ipart, px, py, pz, m);
     return psum;
@@ -104,17 +104,15 @@ namespace rad {
    * @return ResultType_t The resulting mass. Returns M() of the resultant 4-vector.
    */
   template<typename Tp, typename Tm>
-  ResultType_t FourVectorMassCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t FourVectorMassCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const auto& ipos = indices[0];
     const auto& ineg = indices[1];
  
-    // Note: Assuming error checking for invalid indices is performed in the wrapper or upstream.
     
     PxPyPzMVector psum(0,0,0,0);
     SumFourVector(psum, ipos, px, py, pz, m);
     SubtractFourVector(psum, ineg, px, py, pz, m);
 
-    // cout<<"FourVectorMassCalc "<<ipos<<" "<<ineg<<" "<<pz<<" "<<m<<" "<< psum.M()<<endl;
     return psum.M();
   }
 
@@ -133,7 +131,7 @@ namespace rad {
    * @return ResultType_t The resulting mass. Returns M() of the resultant 4-vector.
    */
   template<typename Tp, typename Tm>
-  ResultType_t FourVectorMass2Calc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t FourVectorMass2Calc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const auto& ipos = indices[0];
     const auto& ineg = indices[1];
     
@@ -160,7 +158,7 @@ namespace rad {
    * @return ResultType_t The resulting mass. Returns M() of the resultant 4-vector.
    */
   template<typename Tp, typename Tm>
-  ResultType_t FourVectorPtCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t FourVectorPtCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const auto& ipos = indices[0];
     const auto& ineg = indices[1];
     
@@ -184,7 +182,7 @@ namespace rad {
    * @return RVecResultType The RVec containing the magnitude of the 3-vector (p).
    */
   template<typename Tp>
-  Tp ThreeVectorMag(const Tp &px, const Tp &py, const Tp &pz) {
+  inline Tp ThreeVectorMag(const Tp &px, const Tp &py, const Tp &pz) {
     return sqrt(px * px + py * py + pz * pz);
   }
 
@@ -192,7 +190,7 @@ namespace rad {
    * @brief prototype for a given indice, used by ApplyKinematics
    */
   template<typename Tp, typename Tm>
-  ResultType_t ThreeVectorMag(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t ThreeVectorMag(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const Indice_t idx = indices[0][0];
     return ThreeVectorMag(px[idx],py[idx],pz[idx]);
   }
@@ -205,7 +203,7 @@ namespace rad {
    * @return RVecResultType The RVec containing the Theta angle.
    */
   template<typename Tp>
-  Tp ThreeVectorTheta(const Tp &px, const Tp &py, const Tp &pz) {
+  inline Tp ThreeVectorTheta(const Tp &px, const Tp &py, const Tp &pz) {
     auto mag = ThreeVectorMag(px,py,pz);
     auto costh = pz/mag;
     return acos(costh);
@@ -215,7 +213,7 @@ namespace rad {
    * @brief prototype for a given indice, used by ApplyKinematics
    */
   template<typename Tp, typename Tm>
-  ResultType_t ThreeVectorTheta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t ThreeVectorTheta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const Indice_t idx = indices[0][0];
     return ThreeVectorTheta(px[idx],py[idx],pz[idx]);
   }
@@ -230,14 +228,14 @@ namespace rad {
    * @return RVecResultType The RVec containing the Phi angle.
    */
   template<typename Tp>
-  Tp ThreeVectorPhi(const Tp &px, const Tp &py, const Tp &pz) {
+  inline Tp ThreeVectorPhi(const Tp &px, const Tp &py, const Tp &pz) {
     return atan2(py,px); 
   }
   /**
    * @brief prototype for a given indice, used by ApplyKinematics
    */
   template<typename Tp, typename Tm>
-  ResultType_t ThreeVectorPhi(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t ThreeVectorPhi(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const Indice_t idx = indices[0][0];
     return ThreeVectorPhi(px[idx],py[idx],pz[idx]);
   }
@@ -251,7 +249,7 @@ namespace rad {
    * @return RVecResultType The RVec containing the pseudorapidity (Eta).
    */
   template<typename Tp>
-  Tp ThreeVectorEta(const Tp &px, const Tp &py, const Tp &pz) {
+  inline Tp ThreeVectorEta(const Tp &px, const Tp &py, const Tp &pz) {
     auto theta = ThreeVectorTheta(px,py,pz);
     return -log(tan(0.5 * theta));
   }
@@ -259,7 +257,7 @@ namespace rad {
    * @brief prototype for a given indice, used by ApplyKinematics
    */
   template<typename Tp, typename Tm>
-  ResultType_t ThreeVectorEta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t ThreeVectorEta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const Indice_t idx = indices[0][0];
     return ThreeVectorEta(px[idx],py[idx],pz[idx]);
   }
@@ -270,7 +268,7 @@ namespace rad {
    * @return RVecResultType The RVec containing the x-component.
    */
   template<typename T>
-  RVecResultType ThreeVectorX(const T &p, const T &theta, const T &phi) {
+  inline RVecResultType ThreeVectorX(const T &p, const T &theta, const T &phi) {
     return p*sin(theta)*cos(phi);
   }
 
@@ -280,7 +278,7 @@ namespace rad {
    * @return RVecResultType The RVec containing the y-component.
    */
   template<typename T>
-  RVecResultType ThreeVectorY(const T &p, const T &theta, const T &phi) {
+  inline RVecResultType ThreeVectorY(const T &p, const T &theta, const T &phi) {
     return p*sin(theta)*sin(phi);
   }
 
@@ -290,7 +288,7 @@ namespace rad {
    * @return RVecResultType The RVec containing the z-component.
    */
   template<typename T>
-  RVecResultType ThreeVectorZ(const T &p, const T &theta, const T &phi) {
+  inline RVecResultType ThreeVectorZ(const T &p, const T &theta, const T &phi) {
     return p*cos(theta);
   }
 
@@ -308,7 +306,7 @@ namespace rad {
    * @return double The DeltaPhi value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
   template<typename Tp, typename Tm>
-  ResultType_t DeltaPhi(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t DeltaPhi(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     // Needs single set of indices (indices[0]), containing exactly two particles
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
@@ -333,7 +331,7 @@ namespace rad {
    * @return double The DeltaTheta value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
   template<typename Tp, typename Tm>
-  ResultType_t DeltaTheta(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t DeltaTheta(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
@@ -357,7 +355,7 @@ namespace rad {
    * @return double The DeltaP value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
   template<typename Tp, typename Tm>
-  ResultType_t DeltaP(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline ResultType_t DeltaP(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
@@ -386,7 +384,7 @@ namespace rad {
    * @return true Always returns true (useful for using this as an RDataFrame Filter/Define action).
    */
   template<typename Tpid, typename Tp, typename Tm>
-  bool PrintParticles(const std::string& type, ULong64_t entry, const Tpid &pid, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline bool PrintParticles(const std::string& type, ULong64_t entry, const Tpid &pid, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     
     std::cout << type << " PrintParticles Event = " << entry << " number " <<px.size()<<std::endl;
     for (size_t idx = 0; idx < px.size(); ++idx) {

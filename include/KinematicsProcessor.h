@@ -182,7 +182,10 @@ namespace rad {
     void Mass2(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg={});
     void Pt(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg={});
 
-    void ParticleTheta(const std::string& name, const ParticleNames_t& particles);
+    void ParticleTheta(const ParticleNames_t& particles);
+    void ParticlePhi(const ParticleNames_t& particles);
+    void ParticleP(const ParticleNames_t& particles);
+    void ParticleEta(const ParticleNames_t& particles);
     
     void PrintReactionMap() const;
  
@@ -206,7 +209,7 @@ namespace rad {
     };
     ROOT::RVec<GroupOverride> _groupOverrides;
 
-    void ApplyGroupOverrides();
+       void ApplyGroupOverrides();
   };
 
   // =================================================================================
@@ -421,7 +424,7 @@ namespace rad {
       _registered_vars.push_back(name);
   }
 
-  // inline void KinematicsProcessor::Define(const std::string& name, const std::string& func, const std::vector<ParticleNames_t>& particles) {
+  // inline void KinematicsProcessor::Define(const std::string& name, const std::string& func, const ROOT::RVec<ParticleNames_t>& particles) {
   //   //    cout <<"KinematicsProcessor::Define "<<endl;
   //   std::string kine_parts = "{";
   //   for(const auto& pnames : particles){
@@ -448,17 +451,33 @@ namespace rad {
   inline void KinematicsProcessor::Pt(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg) {
     RegisterCalc(name, rad::FourVectorPtCalc<rad::RVecResultType, rad::RVecResultType>, {particles_pos, particles_neg});
   }
-  inline void KinematicsProcessor::ParticleTheta(const std::string& name, const ParticleNames_t& particles) {
+  inline void KinematicsProcessor::ParticleTheta(const ParticleNames_t& particles) {
     //here we actually perform a loop over combies
     //so we need to call a dunction which returns
     //a single entry each time.
     //rad::ThreeVectorTheta has an overwite which only uses the
-    //first entry of the first entry  in the given RVecIndices list
+    //first entry of the first entry in the given RVecIndices list
+    cout<<"KinematicsProcessor::ParticleTheta "<<particles<<endl;
     for(const auto& p: particles){
-      RegisterCalc(p+"_"+ name, rad::ThreeVectorTheta, {{p}});
+      RegisterCalc(p+"_theta", rad::ThreeVectorTheta, {{p}});
     }
   }
-  
+ inline void KinematicsProcessor::ParticlePhi(const ParticleNames_t& particles) {
+    for(const auto& p: particles){
+      RegisterCalc(p+"_phi", rad::ThreeVectorPhi, {{p}});
+    }
+  }
+ inline void KinematicsProcessor::ParticleP(const ParticleNames_t& particles) {
+    for(const auto& p: particles){
+      RegisterCalc(p+"_pmag", rad::ThreeVectorMag, {{p}});
+    }
+  }
+  inline void KinematicsProcessor::ParticleEta(const ParticleNames_t& particles) {
+    for(const auto& p: particles){
+      RegisterCalc(p+"_eta", rad::ThreeVectorPhi, {{p}});
+    }
+  }
+
   inline void KinematicsProcessor::PrintReactionMap() const {
     std::cout << "\n=== KinematicsProcessor [" << _prefix << "] " << _suffix << " Reaction Map ===" << std::endl;
     std::cout << std::left << std::setw(20) << "Particle Name" << "Index" << std::endl;

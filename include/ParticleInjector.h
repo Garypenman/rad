@@ -46,7 +46,7 @@ namespace rad {
          * - `{"unsigned int status"}` -> Multi-word type support.
          * - `{"px", "py"}` -> Defaults to "double" if no type specified.
          */
-        void DefineParticleInfo(const std::vector<std::string>& columns);
+        void DefineParticleInfo(const ROOT::RVec<std::string>& columns);
 
         /**
          * @brief Adds a source of data to be merged into the unified vectors.
@@ -61,7 +61,7 @@ namespace rad {
          * If provided, the column is read as `colName[filter]`.
          * * @throws std::runtime_error if the number of columns doesn't match the schema.
          */
-        void AddSource(const std::string& prefix, const std::vector<std::string>& cols, const std::string& filter = "");
+        void AddSource(const std::string& prefix, const ROOT::RVec<std::string>& cols, const std::string& filter = "");
 
         /**
          * @brief Finalizes the injection by creating the unified vectors.
@@ -75,12 +75,12 @@ namespace rad {
 
     private:
         ConfigReaction* _reaction;                      ///< Pointer to the reaction interface
-        std::vector<std::string> _colNames;             ///< Ordered list of variable names (e.g. px, py)
+        ROOT::RVec<std::string> _colNames;             ///< Ordered list of variable names (e.g. px, py)
         std::map<std::string, std::string> _colTypes;   ///< Map of variable name -> C++ type string
         
         // Nested Map Structure:
         // Prefix (rec_) -> List of Sources -> List of Temporary Column Names
-        std::map<std::string, std::vector<std::vector<std::string>>> _sources;
+        std::map<std::string, ROOT::RVec<ROOT::RVec<std::string>>> _sources;
     };
 
     // =========================================================================
@@ -90,14 +90,14 @@ namespace rad {
     inline ParticleInjector::ParticleInjector(ConfigReaction* reaction) 
         : _reaction(reaction) {}
 
-    inline void ParticleInjector::DefineParticleInfo(const std::vector<std::string>& columns) {
+    inline void ParticleInjector::DefineParticleInfo(const ROOT::RVec<std::string>& columns) {
         _colNames.clear();
         _colTypes.clear();
 
         for(const auto& entry : columns) {
             std::stringstream ss(entry);
             std::string segment;
-            std::vector<std::string> parts;
+            ROOT::RVec<std::string> parts;
             
             // Split string by spaces, ignoring empty segments (handles multiple spaces)
             while(std::getline(ss, segment, ' ')) {
@@ -130,7 +130,7 @@ namespace rad {
         }
     }
 
-    inline void ParticleInjector::AddSource(const std::string& prefix, const std::vector<std::string>& cols, const std::string& filter) {
+    inline void ParticleInjector::AddSource(const std::string& prefix, const ROOT::RVec<std::string>& cols, const std::string& filter) {
         if(cols.size() != _colNames.size()) {
             throw std::runtime_error("ParticleInjector Error: Source column count mismatch. " 
                                      "Expected " + std::to_string(_colNames.size()) + 
@@ -140,7 +140,7 @@ namespace rad {
         // Generate a unique ID for this source to ensure temporary names don't collide.
         // e.g. "rec_px_src0", "rec_px_src1"
         std::string sourceID = "_src" + std::to_string(_sources[prefix].size()); 
-        std::vector<std::string> registeredCols;
+        ROOT::RVec<std::string> registeredCols;
         
         for(size_t i = 0; i < cols.size(); ++i) {
 	  std::string tempName = prefix + _colNames[i] + sourceID + DoNotWriteTag();
@@ -171,13 +171,13 @@ namespace rad {
                 std::string type      = _colTypes[_colNames[i]];
                 if(_colNames[i]=="m")cout<<"ParticleInjector::CreateUnifiedVectors() " <<finalName<<" "<<type<<endl;
                 // Collect the temporary column names from all sources for this property
-                std::vector<std::string> colsToMerge;
+                ROOT::RVec<std::string> colsToMerge;
                 for(const auto& src : sources) {
                     colsToMerge.push_back(src[i]);
                 }
                 
                 // Convert vector of strings to comma-separated string: "col1, col2, col3"
-                std::string args = util::ColumnsToStringNoBraces(colsToMerge);
+                std::string args = util::ColumnsToStringNoBraces(utils::as_stdvector(colsToMerge));
 
                 // DIRECT TEMPLATE INJECTION
                 // Generates code: rad::util::Concatenate< type >( col1, col2, ... )
@@ -239,14 +239,14 @@ namespace rad {
 //      * - `{"unsigned int status"}` -> Multi-word type support.
 //      * - `{"px", "py"}` -> Defaults to "double" if no type specified.
 //      */
-//     void DefineParticleInfo(const std::vector<std::string>& columns) {
+//     void DefineParticleInfo(const ROOT::RVec<std::string>& columns) {
 //         _colNames.clear();
 //         _colTypes.clear();
 
 //         for(const auto& entry : columns) {
 //             std::stringstream ss(entry);
 //             std::string segment;
-//             std::vector<std::string> parts;
+//             ROOT::RVec<std::string> parts;
 //             // Split string by spaces
 //             while(std::getline(ss, segment, ' ')) {
 //                 if(!segment.empty()) parts.push_back(segment);
@@ -289,7 +289,7 @@ namespace rad {
 //      * If provided, the column is read as `colName[filter]`.
 //      * * @throws std::runtime_error if the number of columns doesn't match the schema.
 //      */
-//     void AddSource(const std::string& prefix, const std::vector<std::string>& cols, const std::string& filter = "") {
+//     void AddSource(const std::string& prefix, const ROOT::RVec<std::string>& cols, const std::string& filter = "") {
 //         if(cols.size() != _colNames.size()) {
 //             throw std::runtime_error("ParticleInjector Error: Source column count mismatch. " 
 //                                      "Expected " + std::to_string(_colNames.size()) + 
@@ -299,7 +299,7 @@ namespace rad {
 //         // Generate a unique ID for this source to ensure temporary names don't collide.
 //         // e.g. "rec_px_src0", "rec_px_src1"
 //         std::string sourceID = "_src" + std::to_string(_sources[prefix].size()); 
-//         std::vector<std::string> registeredCols;
+//         ROOT::RVec<std::string> registeredCols;
         
 //         for(size_t i=0; i<cols.size(); ++i) {
 //             std::string tempName = prefix + _colNames[i] + sourceID;
@@ -338,7 +338,7 @@ namespace rad {
 //                 std::string type      = _colTypes[_colNames[i]];
                 
 //                 // Collect the temporary column names from all sources for this property
-//                 std::vector<std::string> colsToMerge;
+//                 ROOT::RVec<std::string> colsToMerge;
 //                 for(const auto& src : sources) {
 //                     colsToMerge.push_back(src[i]);
 //                 }
@@ -358,12 +358,12 @@ namespace rad {
 
 //   private:
 //     ConfigReaction* _reaction;                 ///< Pointer to the reaction interface
-//     std::vector<std::string> _colNames;        ///< Ordered list of variable names (e.g. px, py)
+//     ROOT::RVec<std::string> _colNames;        ///< Ordered list of variable names (e.g. px, py)
 //     std::map<std::string, std::string> _colTypes; ///< Map of variable name -> C++ type string
     
 //     // Nested Map Structure:
 //     // Prefix (rec_) -> List of Sources -> List of Temporary Column Names
-//     std::map<std::string, std::vector<std::vector<std::string>>> _sources;
+//     std::map<std::string, ROOT::RVec<ROOT::RVec<std::string>>> _sources;
 //   };
 
 // } // namespace rad

@@ -20,7 +20,7 @@ namespace rad{
     HepMCElectro(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t&  columns ={}) 
       : ElectroIonReaction{treeName,fileNameGlob,columns} {}
 
-    HepMCElectro(const std::string_view treeName, const std::vector<std::string> &filenames, const ROOT::RDF::ColumnNames_t&  columns ={} ) 
+    HepMCElectro(const std::string_view treeName, const ROOT::RVec<std::string> &filenames, const ROOT::RDF::ColumnNames_t&  columns ={} ) 
       : ElectroIonReaction{treeName,filenames,columns} {}
 
     /**

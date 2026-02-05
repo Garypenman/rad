@@ -53,8 +53,8 @@ namespace io {
          * @param colTypes List of types corresponding to the branches.
          */
         SnapshotCombi(const std::string& filename, const std::string& treename, 
-                      const std::vector<std::string>& colNames,
-                      const std::vector<ColType>& colTypes);
+                      const ROOT::RVec<std::string>& colNames,
+                      const ROOT::RVec<ColType>& colTypes);
 
         SnapshotCombi(SnapshotCombi&&) = default;
         SnapshotCombi(const SnapshotCombi&) = delete;
@@ -89,20 +89,20 @@ namespace io {
     private:
         std::string _fileName;
         std::string _treeName;
-        std::vector<std::string> _colNames;
-        std::vector<ColType> _colTypes;
+        ROOT::RVec<std::string> _colNames;
+        ROOT::RVec<ColType> _colTypes;
 
         std::shared_ptr<ROOT::TBufferMerger> _merger;
         std::shared_ptr<unsigned long> _totalCount; 
         
-        std::vector<unsigned long> _slotCounts;      
+        ROOT::RVec<unsigned long> _slotCounts;      
 
         using Value_t = std::variant<double, float, int, unsigned int, short, bool, long long>;
-        using Buffer_t = std::vector<Value_t>;
+        using Buffer_t = ROOT::RVec<Value_t>;
 
-        std::vector<std::shared_ptr<ROOT::TBufferMergerFile>> _files; 
-        std::vector<std::shared_ptr<TTree>> _trees;
-        std::vector<std::unique_ptr<Buffer_t>> _buffers; 
+        ROOT::RVec<std::shared_ptr<ROOT::TBufferMergerFile>> _files; 
+        ROOT::RVec<std::shared_ptr<TTree>> _trees;
+        ROOT::RVec<std::unique_ptr<Buffer_t>> _buffers; 
 
         // --- Helpers ---
         template <typename Tuple, size_t... Is>
@@ -128,8 +128,8 @@ namespace io {
     // =========================================================================
 
     inline SnapshotCombi::SnapshotCombi(const std::string& filename, const std::string& treename, 
-                                        const std::vector<std::string>& colNames,
-                                        const std::vector<ColType>& colTypes)
+                                        const ROOT::RVec<std::string>& colNames,
+                                        const ROOT::RVec<ColType>& colTypes)
         : _fileName(filename), _treeName(treename), 
           _colNames(colNames), _colTypes(colTypes),
           _totalCount(std::make_shared<unsigned long>(0))

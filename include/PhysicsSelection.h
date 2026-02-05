@@ -139,10 +139,10 @@ namespace rad {
         KinematicsProcessor& _proc;
         
         // Configuration Storage (Lazy Definition)
-        std::vector<CutDef> _config;
+        ROOT::RVec<CutDef> _config;
         
         // Active Column Names (Populated in Compile)
-        std::vector<std::string> _cutNames;
+        ROOT::RVec<std::string> _cutNames;
         std::string _finalMask;
     };
 
@@ -330,8 +330,8 @@ namespace rad {
 //          * @param baseCols List of input column names (without prefix/suffix).
 //          */
 //         template <typename Function>
-//         void AddCut(const std::string& baseName, Function&& func, const std::vector<std::string>& baseCols) {
-//             std::vector<std::string> fullCols;
+//         void AddCut(const std::string& baseName, Function&& func, const ROOT::RVec<std::string>& baseCols) {
+//             ROOT::RVec<std::string> fullCols;
 //             fullCols.reserve(baseCols.size());
 //             for(const auto& c : baseCols) {
 //                 fullCols.push_back(_proc.FullName(c));
@@ -444,7 +444,7 @@ namespace rad {
 //     private:
 //         KinematicsProcessor& _proc;
 //         ConfigReaction* _reaction;
-//         std::vector<std::string> _cut_names;
+//         ROOT::RVec<std::string> _cut_names;
 //         std::string _final_mask_col;
 //     };
 

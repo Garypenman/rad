@@ -151,11 +151,11 @@ namespace histo {
         std::string _maskCol;
         bool _initialized = false;
         
-        std::vector<SplitDef> _splits;
-        std::vector<HistoDef> _defs; // Queue for lazy init
+        ROOT::RVec<SplitDef> _splits;
+        ROOT::RVec<HistoDef> _defs; // Queue for lazy init
         
         // Store RResultPtrs to ensure RDF executes the actions
-        std::vector<ROOT::RDF::RResultPtr<THnSparseD>> _results;
+        ROOT::RVec<ROOT::RDF::RResultPtr<THnSparseD>> _results;
 
         /**
          * @brief Internal helper to actually book the histogram in RDF.
@@ -210,13 +210,13 @@ namespace histo {
     inline void Histogrammer::BookInternal(const HistoDef& def) {
         // 1. Resolve Column Names using Processor (Safe because Kine::Init ran)
         std::string fullVarName = _proc.FullName(def.varBaseName);
-        std::vector<std::string> cols;
+        ROOT::RVec<std::string> cols;
         cols.push_back(fullVarName);
 
         // 2. Setup Dimensions (1 Main Var + N Splits)
         int n_dims = 1 + _splits.size();
-        std::vector<int> bins_vec(n_dims);
-        std::vector<double> xmin(n_dims), xmax(n_dims);
+        ROOT::RVec<int> bins_vec(n_dims);
+        ROOT::RVec<double> xmin(n_dims), xmax(n_dims);
         
         // Axis 0: The Main Variable
         bins_vec[0] = def.nbins; xmin[0] = def.min; xmax[0] = def.max;
@@ -248,12 +248,12 @@ namespace histo {
             cols.push_back(_maskCol); 
             // Use <true> for Masked execution. No data types needed in template.
             THnCombi<true> action(hist);
-            _results.push_back(_rad.CurrFrame().Book(std::move(action), cols));
+            _results.push_back(_rad.CurrFrame().Book(std::move(action), utils::as_stdvector(cols)));
         } 
         else {
             // Use <false> for Standard execution.
             THnCombi<false> action(hist);
-            _results.push_back(_rad.CurrFrame().Book(std::move(action), cols));
+            _results.push_back(_rad.CurrFrame().Book(std::move(action), utils::as_stdvector(cols)));
         }
     }
 
@@ -421,13 +421,13 @@ namespace histo {
 //         ConfigReaction& _rad; // Underlying RDF Manager
 //         std::string _maskCol;
         
-//         std::vector<SplitDef> _splits;
+//         ROOT::RVec<SplitDef> _splits;
 
 //         // Configuration Registry (Added for Cloning support)
-//         std::vector<HistoDef> _histoDefs;
+//         ROOT::RVec<HistoDef> _histoDefs;
         
 //         // Store RResultPtrs to ensure RDF executes the actions
-//         std::vector<ROOT::RDF::RResultPtr<THnSparseD>> _results;
+//         ROOT::RVec<ROOT::RDF::RResultPtr<THnSparseD>> _results;
 
 //         /**
 //          * @brief Recursive helper to project N-D histogram to 1D slices.
@@ -464,13 +464,13 @@ namespace histo {
 
 //         // 1. Resolve Column Names using Processor
 //         std::string fullVarName = _proc.FullName(varBaseName);
-//         std::vector<std::string> cols;
+//         ROOT::RVec<std::string> cols;
 //         cols.push_back(fullVarName);
 
 //         // 2. Setup Dimensions (1 Main Var + N Splits)
 //         int n_dims = 1 + _splits.size();
-//         std::vector<int> bins_vec(n_dims);
-//         std::vector<double> xmin(n_dims), xmax(n_dims);
+//         ROOT::RVec<int> bins_vec(n_dims);
+//         ROOT::RVec<double> xmin(n_dims), xmax(n_dims);
         
 //         // Axis 0: The Main Variable
 //         bins_vec[0] = nbins; xmin[0] = min; xmax[0] = max;

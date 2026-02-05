@@ -61,7 +61,7 @@ namespace rad {
      * @param topo Vector of pairs: `{Required_Count, PID}`.
      */
     template<typename T>
-    void CountTopo(T* rdf, const std::string& type, const std::vector<std::pair<unsigned int, int>>& topo) {
+    void CountTopo(T* rdf, const std::string& type, const ROOT::RVec<std::pair<unsigned int, int>>& topo) {
       
       std::string col_name = type + "has_topo_debug";
 
@@ -116,7 +116,7 @@ namespace rad {
           ROOT::RDF::RResultPtr<double> gt1;
       };
       
-      std::vector<StatHolder> stats;
+      ROOT::RVec<StatHolder> stats;
       stats.reserve(names.size());
 
       auto rdf = reaction->CurrFrame();

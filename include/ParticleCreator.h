@@ -199,6 +199,7 @@ namespace rad {
 
       /** @return A list of all particle names currently registered in the index map. */
       ROOT::RVec<std::string> GetParticleNames() const {
+	cout<<"GetParticleNames() " << _nameIndex.size()<<" "<<_input2ReactionIndex.size()<<" "<<_p_names.size()<<endl;
         ROOT::RVec<std::string> names;
           names.reserve(_nameIndex.size());
           for(const auto& pair : _nameIndex) {
@@ -294,13 +295,13 @@ namespace rad {
     }
 
     inline int ParticleCreator::GetIndexSafe(const std::string& name) const {
-        auto it = _nameIndex.find(name);
-        if (it == _nameIndex.end()) {
-            std::cerr << "\n[ParticleCreator FATAL] Missing Particle Index: " << name << "\n";
-            std::cerr << "  Processor: " << _prefix << " (Suffix: '" << _suffix << "')\n";
-            throw std::runtime_error("Particle '" + name + "' missing in map. Check inputs.");
-        }
-        return it->second;
+      auto it = _nameIndex.find(name);
+      if (it == _nameIndex.end()) {
+	std::cerr << "\n[ParticleCreator FATAL] Missing Particle Index: " << name << "\n";
+	std::cerr << "  Processor: " << _prefix << " (Suffix: '" << _suffix << "')\n";
+	throw std::runtime_error("Particle '" + name + "' missing in map. Check inputs.");
+      }
+      return it->second;
     }
 
     inline Indices_t ParticleCreator::CreateIndices(IndexMap_t& nameIndex, const ParticleNames_t& names, size_t& idx) {
@@ -351,7 +352,7 @@ namespace rad {
       if (_reaction->ColumnExists(_prefix + kineCol)) {
           throw std::runtime_error("Topology Collision: Processor [" + _prefix + "] suffix [" + _suffix + "] already exists.");
       }
-      _reaction->SetGroupParticles(kineCol, _prefix, _inputNames);
+      _reaction->SetGroupParticles(kineCol, _prefix, utils::as_stdvector(_inputNames));
 
       // 3. BUILD INDEX MAPS
       size_t in_idx = 0;
@@ -422,8 +423,8 @@ namespace rad {
     inline bool ParticleCreator::HasParticle(const std::string& name) const { return _nameIndex.find(name) != _nameIndex.end(); }
     inline const IndexMap_t& ParticleCreator::GetIndexMap() const { return _nameIndex; }
     inline size_t ParticleCreator::GetNCreated() const { return _p_names.size(); }
-    inline Int_t ParticleCreator::GetReactionIndex(const std::string& name) const { return GetIndexSafe(name); }
-    inline Int_t ParticleCreator::GetReactionIndex(size_t input) const { return _input2ReactionIndex[input]; }
+    inline Indice_t ParticleCreator::GetReactionIndex(const std::string& name) const { return GetIndexSafe(name); }
+    inline Indice_t ParticleCreator::GetReactionIndex(size_t input) const { return _input2ReactionIndex[input]; }
     inline std::string ParticleCreator::GetMapName() const { return _prefix + consts::ReactionMap() + _suffix + DoNotWriteTag(); }
 
     inline void ParticleCreator::ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 

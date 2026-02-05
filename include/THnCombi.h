@@ -113,7 +113,7 @@ namespace rad {
 
     private:
         /// Vector of histograms, one per thread slot.
-        std::vector<Hist_ptr> _hists;
+        ROOT::RVec<Hist_ptr> _hists;
 
         /**
          * @brief Helper: Unpacks tuple values into the coordinate vector 'x'.
