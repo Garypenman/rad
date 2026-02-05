@@ -114,7 +114,7 @@ namespace rad {
     SumFourVector(psum, ipos, px, py, pz, m);
     SubtractFourVector(psum, ineg, px, py, pz, m);
 
-    cout<<"FourVectorMassCalc "<<ipos<<" "<<ineg<<" "<<pz<<" "<<m<<" "<< psum.M()<<endl;
+    // cout<<"FourVectorMassCalc "<<ipos<<" "<<ineg<<" "<<pz<<" "<<m<<" "<< psum.M()<<endl;
     return psum.M();
   }
 
@@ -178,56 +178,90 @@ namespace rad {
   /**
    * @brief Calculates the magnitude (momentum) of 3-vectors.
    * @tparam T Type of momentum components (RVec<T>).
-   * @param x The RVec of x-components.
-   * @param y The RVec of y-components.
-   * @param z The RVec of z-components.
+   * @param px The RVec of x-components.
+   * @param py The RVec of y-components.
+   * @param pz The RVec of z-components.
    * @return RVecResultType The RVec containing the magnitude of the 3-vector (p).
    */
-  template<typename T>
-  RVecResultType ThreeVectorMag(const T &x, const T &y, const T &z) {
-    return sqrt(x * x + y * y + z * z);
+  template<typename Tp>
+  Tp ThreeVectorMag(const Tp &px, const Tp &py, const Tp &pz) {
+    return sqrt(px * px + py * py + pz * pz);
   }
 
   /**
+   * @brief prototype for a given indice, used by ApplyKinematics
+   */
+  template<typename Tp, typename Tm>
+  ResultType_t ThreeVectorMag(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    const Indice_t idx = indices[0][0];
+    return ThreeVectorMag(px[idx],py[idx],pz[idx]);
+  }
+  /**
    * @brief Calculates the Theta angle of 3-vectors.
    * @tparam T Type of momentum components (RVec<T>).
-   * @param x The RVec of x-components.
-   * @param y The RVec of y-components.
-   * @param z The RVec of z-components.
+   * @param px The RVec of x-components.
+   * @param py The RVec of y-components.
+   * @param pz The RVec of z-components.
    * @return RVecResultType The RVec containing the Theta angle.
    */
-  template<typename T>
-  RVecResultType ThreeVectorTheta(const T &x, const T &y, const T &z) {
-    auto mag = ThreeVectorMag(x,y,z);
-    auto costh = z/mag;
+  template<typename Tp>
+  Tp ThreeVectorTheta(const Tp &px, const Tp &py, const Tp &pz) {
+    auto mag = ThreeVectorMag(px,py,pz);
+    auto costh = pz/mag;
     return acos(costh);
   }
+  
+  /**
+   * @brief prototype for a given indice, used by ApplyKinematics
+   */
+  template<typename Tp, typename Tm>
+  ResultType_t ThreeVectorTheta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    const Indice_t idx = indices[0][0];
+    return ThreeVectorTheta(px[idx],py[idx],pz[idx]);
+  }
+ 
 
   /**
    * @brief Calculates the Phi angle of 3-vectors.
    * @tparam T Type of momentum components (RVec<T>).
-   * @param x The RVec of x-components.
-   * @param y The RVec of y-components.
-   * @param z The RVec of z-components.
+   * @param px The RVec of x-components.
+   * @param py The RVec of y-components.
+   * @param pz The RVec of z-components.
    * @return RVecResultType The RVec containing the Phi angle.
    */
-  template<typename T>
-  RVecResultType ThreeVectorPhi(const T &x, const T &y, const T &z) {
-    return atan2(y,x); 
+  template<typename Tp>
+  Tp ThreeVectorPhi(const Tp &px, const Tp &py, const Tp &pz) {
+    return atan2(py,px); 
+  }
+  /**
+   * @brief prototype for a given indice, used by ApplyKinematics
+   */
+  template<typename Tp, typename Tm>
+  ResultType_t ThreeVectorPhi(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    const Indice_t idx = indices[0][0];
+    return ThreeVectorPhi(px[idx],py[idx],pz[idx]);
   }
 
   /**
    * @brief Calculates the pseudorapidity (Eta) of 3-vectors.
    * @tparam T Type of momentum components (RVec<T>).
-   * @param x The RVec of x-components.
-   * @param y The RVec of y-components.
-   * @param z The RVec of z-components.
+   * @param px The RVec of x-components.
+   * @param py The RVec of y-components.
+   * @param pz The RVec of z-components.
    * @return RVecResultType The RVec containing the pseudorapidity (Eta).
    */
-  template<typename T>
-  RVecResultType ThreeVectorEta(const T &x, const T &y, const T &z) {
-    auto theta = ThreeVectorTheta(x,y,z);
+  template<typename Tp>
+  Tp ThreeVectorEta(const Tp &px, const Tp &py, const Tp &pz) {
+    auto theta = ThreeVectorTheta(px,py,pz);
     return -log(tan(0.5 * theta));
+  }
+  /**
+   * @brief prototype for a given indice, used by ApplyKinematics
+   */
+  template<typename Tp, typename Tm>
+  ResultType_t ThreeVectorEta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    const Indice_t idx = indices[0][0];
+    return ThreeVectorEta(px[idx],py[idx],pz[idx]);
   }
 
   /**
@@ -268,20 +302,20 @@ namespace rad {
    * with exactly two particle indices (i0, i1).
    * * @tparam T Type of position/momentum components (RVec<T>).
    * @param indices The RVecIndices container. Expected structure: indices[0][0] = i0, indices[0][1] = i1.
-   * @param x The RVec of x-components.
-   * @param y The RVec of y-components.
-   * @param z The RVec of z-components.
+   * @param px The RVec of x-components.
+   * @param py The RVec of y-components.
+   * @param pz The RVec of z-components.
    * @return double The DeltaPhi value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
-  template<typename T>
-  double DeltaPhi(const RVecIndices &indices, const T &x, const T &y, const T &z) {
+  template<typename Tp, typename Tm>
+  ResultType_t DeltaPhi(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     // Needs single set of indices (indices[0]), containing exactly two particles
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
     if (i0 < 0 || i1 < 0) return rad::consts::InvalidEntry<double>();
-    auto p0 = XYZVector(x[i0], y[i0], z[i0]);
-    auto p1 = XYZVector(x[i1], y[i1], z[i1]);
+    auto p0 = XYZVector(px[i0], py[i0], pz[i0]);
+    auto p1 = XYZVector(px[i1], py[i1], pz[i1]);
     if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::consts::InvalidEntry<double>();
     
     return ROOT::Math::VectorUtil::DeltaPhi(p0, p1);
@@ -293,19 +327,19 @@ namespace rad {
    * with exactly two particle indices (i0, i1).
    * * @tparam T Type of position/momentum components (RVec<T>).
    * @param indices The RVecIndices container. Expected structure: indices[0][0] = i0, indices[0][1] = i1.
-   * @param x The RVec of x-components.
-   * @param y The RVec of y-components.
-   * @param z The RVec of z-components.
+   * @param px The RVec of x-components.
+   * @param py The RVec of y-components.
+   * @param pz The RVec of z-components.
    * @return double The DeltaTheta value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
-  template<typename T>
-  double DeltaTheta(const RVecIndices &indices, const T &x, const T &y, const T &z) {
+  template<typename Tp, typename Tm>
+  ResultType_t DeltaTheta(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
     if (i0 < 0 || i1 < 0) return rad::consts::InvalidEntry<double>();
-    auto p0 = XYZVector(x[i0], y[i0], z[i0]);
-    auto p1 = XYZVector(x[i1], y[i1], z[i1]);
+    auto p0 = XYZVector(px[i0], py[i0], pz[i0]);
+    auto p1 = XYZVector(px[i1], py[i1], pz[i1]);
     if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::consts::InvalidEntry<double>();
     
     return TMath::ACos(ROOT::Math::VectorUtil::CosTheta(p0, p1));
@@ -317,19 +351,19 @@ namespace rad {
    * with exactly two particle indices (i0, i1).
    * * @tparam T Type of position/momentum components (RVec<T>).
    * @param indices The RVecIndices container. Expected structure: indices[0][0] = i0, indices[0][1] = i1.
-   * @param x The RVec of x-components.
-   * @param y The RVec of y-components.
-   * @param z The RVec of z-components.
+   * @param px The RVec of x-components.
+   * @param py The RVec of y-components.
+   * @param pz The RVec of z-components.
    * @return double The DeltaP value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
-  template<typename T>
-  double DeltaP(const RVecIndices &indices, const T &x, const T &y, const T &z) {
+  template<typename Tp, typename Tm>
+  ResultType_t DeltaP(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
     if (i0 < 0 || i1 < 0) return rad::consts::InvalidEntry<double>();
-    auto p0 = XYZVector(x[i0], y[i0], z[i0]);
-    auto p1 = XYZVector(x[i1], y[i1], z[i1]);
+    auto p0 = XYZVector(px[i0], py[i0], pz[i0]);
+    auto p1 = XYZVector(px[i1], py[i1], pz[i1]);
     if (p0.Mag2() == 0 || p1.Mag2() == 0) return rad::consts::InvalidEntry<double>();
     
     return TMath::Sqrt( (p0 - p1).Mag2() );

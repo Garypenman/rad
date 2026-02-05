@@ -28,7 +28,7 @@ namespace rad{
   constexpr int OrderZ() {return static_cast<int> (ComponentsOrder::Z); }
   constexpr int OrderM() {return static_cast<int> (ComponentsOrder::M); }
  
-  using ParticleNames_t = std::vector<std::string>;
+  using ParticleNames_t = ROOT::RVec<std::string>;
  
 }
 //#pragma link C++ class ROOT::VecOps::RVec<ROOT::VecOps::RVec<int> >+;

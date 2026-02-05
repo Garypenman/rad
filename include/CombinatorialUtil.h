@@ -123,10 +123,10 @@ namespace rad {
      * @param components The Transposed Kinematic Cache: `[Combo][Component][Particle]`.
      * @return `ROOT::RVec<ResultType_t>` Vector of scalar results.
      */
-    template <typename F>
+    template <typename F, typename Index>
     ROOT::RVec<ResultType_t> ApplyKinematics(
         F&& singleComboKernel,
-        const RVecIndexMap& fixed_map,
+        const Index& indices,
         const ROOT::RVec<ROOT::RVec<RVecResultType>>& components) 
     {
        // Safety check: Ensure components exist
@@ -146,7 +146,7 @@ namespace rad {
           // components[i_combo] is RVec<RVecResultType> of size 4.
           // Index 0=Px, 1=Py, 2=Pz, 3=M (See CommonDefines.h: OrderX...)
           
-          results[i_combo] = singleComboKernel(fixed_map, 
+          results[i_combo] = singleComboKernel(indices, 
                          components[i_combo][OrderX()],
                          components[i_combo][OrderY()],
                          components[i_combo][OrderZ()],

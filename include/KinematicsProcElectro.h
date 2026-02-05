@@ -14,7 +14,7 @@ namespace rad {
    */
   class KinematicsProcElectro : public KinematicsProcessor {
   public:
-    
+   
     /**
      * @brief Standard Constructor.
      * @param cr The configuration interface.
@@ -28,7 +28,7 @@ namespace rad {
      * Creates a new processor inheriting the configuration of the other, but with a new suffix.
      * Use this to create a "Missing Neutron" hypothesis from a standard processor.
      */
-    KinematicsProcElectro(const KinematicsProcElectro& other, const std::string& new_suffix);
+    //  KinematicsProcElectro(const KinematicsProcElectro& other, const std::string& new_suffix);
 
     // =================================================================================
     // Electro-Specific Shortcuts
@@ -64,12 +64,12 @@ namespace rad {
       Creator().Diff(consts::VirtGamma(), {{consts::BeamEle()}, {consts::ScatEle()}});
   }
 
-  inline KinematicsProcElectro::KinematicsProcElectro(const KinematicsProcElectro& other, const std::string& new_suffix)
-      : KinematicsProcessor(other, new_suffix) 
-  {
-      // The Base Class copy constructor handles copying the ParticleCreator state 
-      // (including the VirtGamma definition and Group mappings).
-  }
+  // inline KinematicsProcElectro::KinematicsProcElectro(const KinematicsProcElectro& other, const std::string& new_suffix)
+  //     : KinematicsProcessor(other, new_suffix) 
+  // {
+  //     // The Base Class copy constructor handles copying the ParticleCreator state 
+  //     // (including the VirtGamma definition and Group mappings).
+  // }
 
   inline void KinematicsProcElectro::Q2() {
     RegisterCalc("Q2", rad::physics::ElS_Q2);

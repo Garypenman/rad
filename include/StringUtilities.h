@@ -15,19 +15,19 @@ namespace rad{
     using RVecS = ROOT::RVec<std::string>;
 
     /**
-     * @brief Concatenates an arbitrary number of string containers into a single std::vector<std::string>.
-     * * @tparam Containers A pack of containers (e.g., std::vector<std::string>, std::initializer_list<std::string>)
+     * @brief Concatenates an arbitrary number of string containers into a single ROOT::RVec<std::string>.
+     * * @tparam Containers A pack of containers (e.g., ROOT::RVec<std::string>, std::initializer_list<std::string>)
      * where the element type is convertible to std::string.
      * @param containers The containers to be concatenated.
-     * @return std::vector<std::string> The consolidated vector of strings.
+     * @return ROOT::RVec<std::string> The consolidated vector of strings.
      */
     template <typename... Containers>
-    std::vector<std::string> concatenateStringVectors(const Containers&... containers) {
+    ROOT::RVec<std::string> concatenateStringVectors(const Containers&... containers) {
         
         // --- 1. Calculate the total required size (optional but recommended for reserve) ---
         size_t total_size = (0 + ... + containers.size());
         
-        std::vector<std::string> result;
+        ROOT::RVec<std::string> result;
         result.reserve(total_size);
 
         // --- 2. Concatenate using a C++17 Fold Expression ---
@@ -115,7 +115,7 @@ namespace rad{
      * (e.g., std::string, int, double, etc.).
      * @return A string representing the function call (e.g., "myFunc(arg1, arg2)").
      */
-    std::string createFunctionCallStringFromVec(const std::string& funcName, const  std::vector<std::string>&  args) {
+    std::string createFunctionCallStringFromVec(const std::string& funcName, const  ROOT::RVec<std::string>&  args) {
       std::stringstream ss; // Create a stringstream to build the result string.
       ss << funcName << "("<<args[0]; // Start with the function name and opening parenthesis.
       if(args.size()>1){
@@ -166,7 +166,7 @@ namespace rad{
  * @param stringVector The vector of strings to combine.
  * @return A single string representing the combined vector (e.g., "{item1, item2, item3}").
  */
-std::string combineVectorToString(const std::vector<std::string>& stringVector) {
+std::string combineVectorToString(const ROOT::RVec<std::string>& stringVector) {
     std::stringstream ss; // Create a stringstream for efficient string building.
     ss << "{";            // Prepend with an opening curly brace.
 
@@ -194,7 +194,7 @@ std::string combineVectorToString(const std::vector<std::string>& stringVector) 
  * @return A single string representing the combined vector (e.g., "{"item1", "item2", "item3"}").
  */
 
-    inline std::string combineVectorToQuotedString(const std::vector<std::string>& parts) {
+    inline std::string combineVectorToQuotedString(const ROOT::RVec<std::string>& parts) {
    std::string result = "{";
    for (const auto& part : parts) {
      result += "\"" + part + "\",";
@@ -248,12 +248,12 @@ std::string toLower(std::string s) {
      * @param caseSensitive If true, the search is case-sensitive. If false, the search is case-insensitive.
      * @return A new vector containing only the strings that contain the substring.
      */
-    std::vector<std::string> filterStrings(
-					   const std::vector<std::string>& stringList,
+    ROOT::RVec<std::string> filterStrings(
+					   const ROOT::RVec<std::string>& stringList,
 					   const std::string& substring,
 					   bool caseSensitive = true)
     {
-      std::vector<std::string> filteredList;
+      ROOT::RVec<std::string> filteredList;
 
       if (substring.empty()) { // If substring is empty, all strings contain it (or none, depending on interpretation).
 	// Here, we'll return all strings if the substring is empty.
@@ -282,7 +282,7 @@ std::string toLower(std::string s) {
     }
     /**
      * @brief Filters a ROOT::RVecS (RVec of strings), returning only those that contain the specified substring.
-     * This function acts as a wrapper, converting RVecS to std::vector<std::string> for filtering,
+     * This function acts as a wrapper, converting RVecS to ROOT::RVec<std::string> for filtering,
      * and then converting the result back to RVecS.
      *
      * @param rvecS A constant reference to the ROOT::RVecS to be filtered.
@@ -290,26 +290,26 @@ std::string toLower(std::string s) {
      * @param caseSensitive If true, the search is case-sensitive. If false, the search is case-insensitive.
      * @return A new ROOT::RVecS containing only the strings that contain the substring.
      */
-    RVecS filterStrings(
+    /* RVecS filterStrings(
 			const RVecS& rvecS,
 			const std::string& substring,
 			bool caseSensitive = true)
     {
-      // 1. Convert ROOT::RVecS to std::vector<std::string>
+      // 1. Convert ROOT::RVecS to ROOT::RVec<std::string>
       // RVecs can be directly constructed from iterators, or implicitly converted
-      // to std::vector in many contexts. Explicit construction is clear.
-      std::vector<std::string> stdVec(rvecS.begin(), rvecS.end());
+      // to ROOT::RVec in many contexts. Explicit construction is clear.
+      ROOT::RVec<std::string> stdVec(rvecS.begin(), rvecS.end());
 
       // 2. Call the core filtering function
       auto filteredStdVec = filterStrings(stdVec, substring, caseSensitive );
       
       // 3. Convert the result back to ROOT::RVecS
-      // RVec can be constructed from a std::vector.
+      // RVec can be constructed from a ROOT::RVec.
       RVecS filteredRVecS(filteredStdVec);
 
       return filteredRVecS;
     }
-
+    */
     /**
      * @brief Removes elements from the destination vector if they exist in the removal vector.
      * * The order of elements in the destination vector is preserved.
@@ -319,8 +319,8 @@ std::string toLower(std::string s) {
      * @param keys_to_remove The vector containing the keys that should be removed from 'dest'.
      */
     void removeExistingStrings(
-        std::vector<std::string>& dest, 
-        const std::vector<std::string>& keys_to_remove) 
+        ROOT::RVec<std::string>& dest, 
+        const ROOT::RVec<std::string>& keys_to_remove) 
     {
         // 1. Create a hash set for fast O(1) average-time lookups.
         // This is much faster than repeatedly using std::find (which is O(N) per call).
@@ -345,15 +345,15 @@ std::string toLower(std::string s) {
      *
      * @param vec1 The first vector<string>.
      * @param vec2 The second vector<string>.
-     * @return std::vector<std::string> A new vector containing the unique common elements.
+     * @return ROOT::RVec<std::string> A new vector containing the unique common elements.
      */
-    std::vector<std::string> getCommonStrings(
-					      const std::vector<std::string>& vec1,
-					      const std::vector<std::string>& vec2) 
+    ROOT::RVec<std::string> getCommonStrings(
+					      const ROOT::RVec<std::string>& vec1,
+					      const ROOT::RVec<std::string>& vec2) 
     {
       // 1. Create mutable copies for sorting (required by std::set_intersection).
-      std::vector<std::string> sorted_vec1 = vec1;
-      std::vector<std::string> sorted_vec2 = vec2;
+      ROOT::RVec<std::string> sorted_vec1 = vec1;
+      ROOT::RVec<std::string> sorted_vec2 = vec2;
 
       // 2. Sort both input vectors. This is the necessary prerequisite for set_intersection.
       // Complexity: O(N log N)
@@ -363,7 +363,7 @@ std::string toLower(std::string s) {
       // 3. Determine the maximum possible size for the result vector and reserve space.
       // The intersection size cannot be larger than the smallest input vector.
       size_t max_size = std::min(sorted_vec1.size(), sorted_vec2.size());
-      std::vector<std::string> result;
+      ROOT::RVec<std::string> result;
       result.reserve(max_size);
 
       // 4. Perform the set intersection.
@@ -377,13 +377,15 @@ std::string toLower(std::string s) {
       return result;
     }
 
-    using ColumnNames_t_Std = std::vector<std::string>;
-    using NestedColumnNames_t = std::vector<std::vector<std::string>>;
+    // using ColumnNames_t_Std = ROOT::RVec<std::string>;
+    //using NestedColumnNames_t = ROOT::RVec<ROOT::RVec<std::string>>;
+    using ColumnNames_t_Std = ROOT::RVec<std::string>;
+    using NestedColumnNames_t = ROOT::RVec<ROOT::RVec<std::string>>;
 
     /**
      * @brief Flattens a 2D vector structure (vector<vector<string>>) into a single 1D vector.
      * * @param nested_names The NestedColumnNames_t structure (vector<vector<string>>) to flatten.
-     * @return ColumnNames_t_Std A single std::vector<std::string> containing all entries.
+     * @return ColumnNames_t_Std A single ROOT::RVec<std::string> containing all entries.
      */
     ColumnNames_t_Std flattenColumnNames(const NestedColumnNames_t& nested_names) {
         
@@ -398,7 +400,7 @@ std::string toLower(std::string s) {
 
         // 2. Insert the contents of each inner vector into the output vector.
         for (const auto& inner_vec : nested_names) {
-            // Use std::vector::insert for efficient appending of the range
+            // Use ROOT::RVec::insert for efficient appending of the range
             flat_names.insert(flat_names.end(), inner_vec.begin(), inner_vec.end());
         }
 
@@ -409,13 +411,13 @@ std::string toLower(std::string s) {
      * @brief Appends a specified suffix string to every element in a vector of strings.
      * * @param input_vector The vector<string> whose elements will be modified.
      * @param suffix The string to append to the end of every element.
-     * @return std::vector<std::string> A new vector containing the modified strings.
+     * @return ROOT::RVec<std::string> A new vector containing the modified strings.
      */
-    std::vector<std::string> appendSuffixToAll(
-        const std::vector<std::string>& input_vector,
+    ROOT::RVec<std::string> appendSuffixToAll(
+        const ROOT::RVec<std::string>& input_vector,
         const std::string& suffix) 
     {
-        std::vector<std::string> result;
+        ROOT::RVec<std::string> result;
         result.reserve(input_vector.size()); // Optimize memory allocation
         
         // Use std::transform to apply the lambda function to every element.
@@ -431,13 +433,13 @@ std::string toLower(std::string s) {
      * @brief Appends a specified suffix string to every element in a vector of strings.
      * * @param input_vector The vector<string> whose elements will be modified.
      * @param suffix The string to append to the end of every element.
-     * @return std::vector<std::string> A new vector containing the modified strings.
+     * @return ROOT::RVec<std::string> A new vector containing the modified strings.
      */
-    std::vector<std::string> prependToAll(
-        const std::vector<std::string>& input_vector,
+    ROOT::RVec<std::string> prependToAll(
+        const ROOT::RVec<std::string>& input_vector,
         const std::string& suffix) 
     {
-        std::vector<std::string> result;
+        ROOT::RVec<std::string> result;
         result.reserve(input_vector.size()); // Optimize memory allocation
         
         // Use std::transform to apply the lambda function to every element.
@@ -456,7 +458,7 @@ std::string toLower(std::string s) {
      * * @param cols The list of column names to pack.
      * @return std::string The function call string.
      */
-    inline std::string createPackVectorString(const std::vector<std::string>& cols) {
+    inline std::string createPackVectorString(const ROOT::RVec<std::string>& cols) {
         if (cols.empty()) {
             return ""; // Should be handled by caller, but safe default
         }

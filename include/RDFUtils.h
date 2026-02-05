@@ -9,8 +9,10 @@
 #include <TString.h> // For TString operations if preferred, or std::string
 
 namespace rad {
+  
+  using ROOT::RDF::RNode;
 
-    // =========================================================================
+  // =========================================================================
     // Shared Column Type Enum
     // =========================================================================
     enum class ColType { Undef, Int, UInt, Float, Double, Short, Bool, Long };
@@ -59,4 +61,22 @@ namespace rad {
         return ColType::Undef;
     }
 
+  void PrintDefinedColumnNames(RNode  df){
+    std::cout<<"Print Column Names : ";
+    auto cols =  df.GetDefinedColumnNames();
+    for(auto& col:cols){
+      std::cout<<col<<", ";
+    }
+    cout<<"\n";
+  }
+  void PrintAllColumnNames(RNode  df){
+    std::cout<<"Print Column Names : ";
+    auto cols =  df.GetColumnNames();
+    for(auto& col:cols){
+      std::cout<<col<<", ";
+    }
+    cout<<"\n";
+  }
+
+  
 } // namespace rad

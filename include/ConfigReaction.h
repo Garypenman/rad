@@ -27,7 +27,7 @@ namespace rad {
     public:
       // --- Constructors ---
       ConfigReaction(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns);
-      ConfigReaction(const std::string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns);
+      ConfigReaction(const std::string_view treeName, const ROOT::RVec<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns);
       ConfigReaction(ROOT::RDataFrame rdf);
       ConfigReaction(ROOT::RDF::RNode rdf);
 
@@ -83,14 +83,14 @@ namespace rad {
       // --- Symmetry Interface ---
       template<typename... Args>
       void SetSymmetryParticles(Args... args) {
-	std::vector<std::string> group = {args...};
+	ROOT::RVec<std::string> group = {args...};
           if(group.size() > 1) _symmetryGroups.push_back(group);
       }
 
       // --- Type System ---
       void AddType(const std::string& atype);
       void ValidateType(const std::string& type) const;
-      std::vector<std::string> GetTypes() const;
+      ROOT::RVec<std::string> GetTypes() const;
       bool TypeExists(const std::string& type) const;
       
       // --- Candidate Definition ---
@@ -150,13 +150,13 @@ namespace rad {
       
       void Snapshot(const std::string& filename) override;
       void BookLazySnapshot(const std::string& filename) override;
-      void RemoveSnapshotColumns(std::vector<std::string>& cols) override;
+      void RemoveSnapshotColumns(ROOT::RVec<std::string>& cols) override;
 
     protected:
       bool _useBeamsFromMC = false; 
       const std::string& GetDefaultType() const;
       TruthMatchRegistry _truthMatchRegistry; 
-      std::vector<std::vector<std::string>> _symmetryGroups;
+      ROOT::RVec<ROOT::RVec<std::string>> _symmetryGroups;
 
     private:
       void RegisterParticleName(const std::string& name);
@@ -169,7 +169,7 @@ namespace rad {
       bool _isCombinatorialMode = false;
 
       std::map<std::string, std::map<std::string, std::string>> _type_comps;
-      std::vector<std::string> _types;
+      ROOT::RVec<std::string> _types;
       std::string _primary_type;
       
       ROOT::RDF::ColumnNames_t _particleNames;
@@ -183,7 +183,7 @@ namespace rad {
 
     inline ConfigReaction::ConfigReaction(const std::string_view treeName, const std::string_view fileNameGlob, const ROOT::RDF::ColumnNames_t& columns)
       : RDFInterface(treeName, fileNameGlob, columns) {}
-    inline ConfigReaction::ConfigReaction(const std::string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns)
+    inline ConfigReaction::ConfigReaction(const std::string_view treeName, const ROOT::RVec<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns)
       : RDFInterface(treeName, filenames, columns) {}
     inline ConfigReaction::ConfigReaction(ROOT::RDataFrame rdf) : RDFInterface(rdf) {}
     inline ConfigReaction::ConfigReaction(ROOT::RDF::RNode rdf) : RDFInterface(rdf) {}
@@ -283,7 +283,7 @@ namespace rad {
       cout<<"ConfigReaction::MakeCombinations "<<_types.size()<<endl;
       for (const auto& type : _types) {
           ROOT::RDF::ColumnNames_t candidateCols;
-          std::vector<std::string> rawNames; 
+          ROOT::RVec<std::string> rawNames; 
 
           auto collect = [&](const std::string& name) {
              rawNames.push_back(name);
@@ -312,9 +312,9 @@ namespace rad {
           if (_symmetryGroups.empty()) {
               Define(comboColName, Form("rad::combinatorics::GenerateAllCombinations(%s)", colList.c_str()));
           } else {
-              std::vector<std::string> groupStrs;
+              ROOT::RVec<std::string> groupStrs;
               for(const auto& group : _symmetryGroups) {
-                  std::vector<std::string> idxStrs;
+                  ROOT::RVec<std::string> idxStrs;
                   for(const auto& pName : group) {
                       auto it = std::find(rawNames.begin(), rawNames.end(), pName);
                       if(it != rawNames.end()) idxStrs.push_back(std::to_string(std::distance(rawNames.begin(), it)));
@@ -415,7 +415,7 @@ namespace rad {
         auto snapshot_result = final_df.Snapshot("rad_tree", filename, cols, opts);
         _triggerSnapshots.emplace_back([snapshot = std::move(snapshot_result)]() mutable {});
     }
-    inline void ConfigReaction::RemoveSnapshotColumns(std::vector<std::string>& cols) {
+    inline void ConfigReaction::RemoveSnapshotColumns(ROOT::RVec<std::string>& cols) {
       cols.erase(std::remove(cols.begin(), cols.end(), consts::ReactionMap()), cols.end());
       auto tag = DoNotWriteTag();
       cols.erase(std::remove_if(cols.begin(), cols.end(), [&tag](const std::string& col) -> bool { return col.find(tag) != std::string::npos; }),cols.end());
@@ -428,12 +428,12 @@ namespace rad {
       _types.push_back(atype);
     }
     inline void ConfigReaction::ValidateType(const std::string& type) const {
-      if (std::find(_types.begin(), _types.end(), type) == _types.end()) throw std::invalid_argument("Error: Data type '" + type + "' is not registered.");
+      if (std::find(_types.begin(), _types.end(), type) == _types.end()) throw std::invalid_argument("Error: Data type '" + type + "' is not registered. "+_types.size());
     }
   inline bool ConfigReaction::TypeExists(const std::string& type) const {
       if (std::find(_types.begin(), _types.end(), type) == _types.end()) return false;
       return true;
     }
-    inline std::vector<std::string> ConfigReaction::GetTypes() const { return _types; }
+    inline ROOT::RVec<std::string> ConfigReaction::GetTypes() const { return _types; }
 
 } // namespace rad

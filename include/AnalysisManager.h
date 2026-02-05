@@ -31,42 +31,44 @@
 
 namespace rad {
 
-    /**
-     * @struct AnalysisStream
-     * @brief Holds the components for a single data stream (e.g., "rec_" or "tru_").
-     * @details
-     * A stream is a self-contained processing unit consisting of:
-     * - KinematicsProcessor: Creates particles and variables.
-     * - PhysicsSelection: Applies cuts.
-     * - Histogrammer: Creates plots.
-     */
-    struct AnalysisStream {
-        std::string prefix;
-        std::unique_ptr<KinematicsProcessor> kine;
-        std::unique_ptr<PhysicsSelection> sel;
-        std::unique_ptr<histo::Histogrammer> hist;
-
-        AnalysisStream(ConfigReaction* reaction, const std::string& p) 
-            : prefix(p) 
-        {
-            kine = std::make_unique<KinematicsProcessor>(reaction, prefix);
-            // Selection depends on Kine
-            sel  = std::make_unique<PhysicsSelection>(*kine);
-            // Histograms depend on Kine and Selection
-            hist = std::make_unique<histo::Histogrammer>(*kine, sel.get());
-        }
-    };
+   
 
     /**
      * @class AnalysisManager
      * @brief The main driver class for RAD analysis.
      * @tparam ReactionType The concrete reaction class (e.g. ePICReaction).
      */
-    template <typename ReactionType>
+  template <typename ReactionClass,typename ProcessorClass>
     class AnalysisManager {
+ /**
+     * @struct AnalysisStream
+     * @brief Holds the components for a single data stream (e.g., "rec_" or "tru_").
+     * @details
+     * A stream is a self-contained processing unit consisting of:
+     * - ProcessorClass: Creates particles and variables.
+     * - PhysicsSelection: Applies cuts.
+     * - Histogrammer: Creates plots.
+     */
+    struct AnalysisStream {
+        std::string prefix;
+        std::unique_ptr<ProcessorClass> kine;
+        std::unique_ptr<PhysicsSelection> sel;
+        std::unique_ptr<histo::Histogrammer> hist;
+
+        AnalysisStream(ReactionClass* reaction, const std::string& p) 
+            : prefix(p) 
+        {
+            kine = std::make_unique<ProcessorClass>(reaction, prefix);
+            // Selection depends on Kine
+            sel  = std::make_unique<PhysicsSelection>(*kine);
+            // Histograms depend on Kine and Selection
+            hist = std::make_unique<histo::Histogrammer>(*kine, sel.get());
+        }
+    };
+    
     public:
         // Recipe Signatures
-        using KineRecipe  = std::function<void(KinematicsProcessor&)>;
+        using KineRecipe  = std::function<void(ProcessorClass&)>;
         using SelRecipe   = std::function<void(PhysicsSelection&)>;
         using HistoRecipe = std::function<void(histo::Histogrammer&)>;
 
@@ -105,7 +107,7 @@ namespace rad {
         }
 
         /** @return Reference to the underlying Reaction object. */
-        ReactionType& Reaction() { return _reaction; }
+        ReactionClass& Reaction() { return _reaction; }
 
         // =====================================================================
         // Configuration
@@ -159,7 +161,7 @@ namespace rad {
             for(auto& [key, stream] : _streams) {
 	      cout<< "AnalysisMAnager::Init Kine "<< endl;
                 stream.kine->Init();
-                
+                stream.kine->PrintReactionMap();
                 // Define Signal Flags (Truth Matching)
                 // Depends on Kinematics being ready (to know topology)
 		//    _reaction.DefineSignalFlag(stream.prefix); 
@@ -264,9 +266,9 @@ namespace rad {
                 }
             }
         }
-
+      
     private:
-        ReactionType _reaction;
+        ReactionClass _reaction;
         std::string _name;
         std::string _outputDir;
         bool _initialized = false;
@@ -296,7 +298,7 @@ namespace rad {
             return filename;
         }
 
-        ROOT::RDF::ColumnNames_t CollectStreamColumns(const KinematicsProcessor& kine) {
+        ROOT::RDF::ColumnNames_t CollectStreamColumns(const ProcessorClass& kine) {
             ROOT::RDF::ColumnNames_t cols;
             
             // 1. Collect Variables
@@ -329,7 +331,7 @@ namespace rad {
 /* #pragma once */
 
 /* #include "ConfigReaction.h" */
-/* #include "KinematicsProcessor.h" */
+/* #include "ProcessorClass.h" */
 /* #include "PhysicsSelection.h" */
 /* #include "Histogrammer.h" */
 
@@ -350,23 +352,23 @@ namespace rad {
 /*      *\/ */
 /*     struct AnalysisStream { */
 /*         std::string prefix; */
-/*         std::unique_ptr<KinematicsProcessor> kine; */
+/*         std::unique_ptr<ProcessorClass> kine; */
 /*         std::unique_ptr<PhysicsSelection> sel; */
 /*         std::unique_ptr<histo::Histogrammer> hist; */
 
 /*         AnalysisStream(ConfigReaction* reaction, const std::string& p)  */
 /*             : prefix(p)  */
 /*         { */
-/*             kine = std::make_unique<KinematicsProcessor>(reaction, prefix); */
+/*             kine = std::make_unique<ProcessorClass>(reaction, prefix); */
 /*             sel  = std::make_unique<PhysicsSelection>(*kine); */
 /*             hist = std::make_unique<histo::Histogrammer>(*kine, sel.get()); */
 /*         } */
 /*     }; */
 
-/*     template <typename ReactionType> */
+/*     template <typename ReactionClass> */
 /*     class AnalysisManager { */
 /*     public: */
-/*         using KineRecipe  = std::function<void(KinematicsProcessor&)>; */
+/*         using KineRecipe  = std::function<void(ProcessorClass&)>; */
 /*         using SelRecipe   = std::function<void(PhysicsSelection&)>; */
 /*         using HistoRecipe = std::function<void(histo::Histogrammer&)>; */
 
@@ -391,7 +393,7 @@ namespace rad {
 /*             (AddStream(types), ...); */
 /*         } */
 
-/*         ReactionType& Reaction() { return _reaction; } */
+/*         ReactionClass& Reaction() { return _reaction; } */
 
 /*         // ===================================================================== */
 /*         // Configuration */
@@ -506,7 +508,7 @@ namespace rad {
 /*         } */
 
 /*     private: */
-/*         ReactionType _reaction; */
+/*         ReactionClass _reaction; */
 /*         std::string _name; */
 /*         std::string _outputDir; */
 /*         bool _initialized = false; */
@@ -535,7 +537,7 @@ namespace rad {
 /*             return filename; */
 /*         } */
 
-/*         std::vector<std::string> CollectStreamColumns(const KinematicsProcessor& kine) { */
+/*         std::vector<std::string> CollectStreamColumns(const ProcessorClass& kine) { */
 /*             std::vector<std::string> cols; */
          
 /*             for(const auto& var : kine.GetDefinedNames()) { */

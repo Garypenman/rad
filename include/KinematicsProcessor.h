@@ -110,13 +110,13 @@ namespace rad {
     void DefineAux();
 
     /** @brief Define a generic particle group override. */
-    void SetGroup(const std::string& groupName, const std::vector<std::string>& particles);
+    void SetGroup(const std::string& groupName, const ROOT::RVec<std::string>& particles);
 
     /** @brief Override the standard "Mesons" group. */
-    void SetMesonParticles(const std::vector<std::string>& particles);
+    void SetMesonParticles(const ROOT::RVec<std::string>& particles);
 
     /** @brief Override the standard "Baryons" group. */
-    void SetBaryonParticles(const std::vector<std::string>& particles);
+    void SetBaryonParticles(const ROOT::RVec<std::string>& particles);
 
     /** @brief Re-target this processor to a new Reaction (used internally). */
     void SetReaction(ConfigReaction* cr) { 
@@ -144,7 +144,7 @@ namespace rad {
     /** * @brief Get list of all variables defined via RegisterCalc/Mass/Pt etc.
      * @details This is used by `AnalysisManager::Snapshot` to auto-detect columns.
      */
-    const std::vector<std::string>& GetDefinedNames() const { 
+    const ROOT::RVec<std::string>& GetDefinedNames() const { 
       return _registered_vars; 
     }
 
@@ -163,12 +163,12 @@ namespace rad {
      * @param func The kernel function.
      * @param particles List of particle names needed by the kernel.
      */
-    void RegisterCalc(const std::string& name, KineCalculation::IndexKernel func, std::vector<ParticleNames_t> particles);
+    void RegisterCalc(const std::string& name, KineCalculation::IndexKernel func, ROOT::RVec<ParticleNames_t> particles);
 
     // --- Legacy String-Based Definition ---
     
     void Define(const std::string& name, const std::string& func);
-    void Define(const std::string& name, const std::string& func, const std::vector<ParticleNames_t>& particles);
+    void Define(const std::string& name, const std::string& func, const ROOT::RVec<ParticleNames_t>& particles);
 
     /** @brief Helper to define an arbitrary lambda kernel in RDF. */
     template <typename Lambda>
@@ -181,6 +181,8 @@ namespace rad {
     void Mass(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg={});
     void Mass2(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg={});
     void Pt(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg={});
+
+    void ParticleTheta(const std::string& name, const ParticleNames_t& particles);
     
     void PrintReactionMap() const;
  
@@ -195,14 +197,14 @@ namespace rad {
     ParticleModifier _preModifier;
     ParticleModifier _postModifier;
 
-    std::vector<KineCalculation> _calculations;
-    std::vector<std::string> _registered_vars; // Registry of variable names for Snapshot
+    ROOT::RVec<KineCalculation> _calculations;
+    ROOT::RVec<std::string> _registered_vars; // Registry of variable names for Snapshot
     
     struct GroupOverride {
         std::string name;
-        std::vector<std::string> particles;
+        ROOT::RVec<std::string> particles;
     };
-    std::vector<GroupOverride> _groupOverrides;
+    ROOT::RVec<GroupOverride> _groupOverrides;
 
     void ApplyGroupOverrides();
   };
@@ -220,7 +222,7 @@ namespace rad {
     _isInitialized = true;
 
     cout<< "KinematicsProcessor::Init() "<<_prefix<<endl;
- 
+    _reaction->ValidateType(_prefix);
     // Clear the registry to ensure no stale/duplicate entries from config phase
     _registered_vars.clear();
 
@@ -247,32 +249,29 @@ namespace rad {
       }
   }
 
-  inline void KinematicsProcessor::SetGroup(const std::string& groupName, const std::vector<std::string>& particles) {
+  inline void KinematicsProcessor::SetGroup(const std::string& groupName, const ROOT::RVec<std::string>& particles) {
       _groupOverrides.push_back({groupName, particles});
   }
 
-  inline void KinematicsProcessor::SetMesonParticles(const std::vector<std::string>& particles) {
+  inline void KinematicsProcessor::SetMesonParticles(const ROOT::RVec<std::string>& particles) {
       SetGroup(rad::consts::Mesons(), particles);
   }
 
-  inline void KinematicsProcessor::SetBaryonParticles(const std::vector<std::string>& particles) {
+  inline void KinematicsProcessor::SetBaryonParticles(const ROOT::RVec<std::string>& particles) {
       SetGroup(rad::consts::Baryons(), particles);
   }
 
   inline void KinematicsProcessor::RegisterCalc(const std::string& name, KineCalculation::MapKernel func) {
       _calculations.emplace_back(name, func);
-      // FIX: Do NOT register here. KineCalculation::Define() calls DefineKernel(), which will register it later.
-      // _registered_vars.push_back(name); 
   }
 
-  inline void KinematicsProcessor::RegisterCalc(const std::string& name, KineCalculation::IndexKernel func, std::vector<ParticleNames_t> particles) {
+  inline void KinematicsProcessor::RegisterCalc(const std::string& name, KineCalculation::IndexKernel func, ROOT::RVec<ParticleNames_t> particles) {
+    
       _calculations.emplace_back(name, func, particles);
-      // FIX: Do NOT register here.
-      // _registered_vars.push_back(name);
   }
 
   inline void KinematicsProcessor::DefineAux() {
-      auto define_pack = [&](const std::string& name, const std::vector<std::string>& cols, bool is_int) {
+      auto define_pack = [&](const std::string& name, const ROOT::RVec<std::string>& cols, bool is_int) {
           if(cols.empty()) {
               if(is_int) _reaction->Define(name, [](){ return RVecRVecI{}; }, {});
               else       _reaction->Define(name, [](){ return RVecRVecD{}; }, {});
@@ -363,7 +362,7 @@ namespace rad {
        auto particle_names = _creator.GetParticleNames();
        
        // 2. Define Components mapping
-       const std::vector<std::pair<std::string, int>> components = {
+       const ROOT::RVec<std::pair<std::string, int>> components = {
          {"_px", 0}, {"_py", 1}, {"_pz", 2}, {"_m", 3}
        };
        
@@ -418,24 +417,26 @@ namespace rad {
       cout<<"KinematicsProcessor::DefineKernel " << FullName(name)<<endl; // Commented out for cleanliness
       _reaction->Define(FullName(name), apply_func, cols);
       
-      // FIX: This is the ONLY place where calculated variables should be registered!
+      // calculated variables should be registered!
       _registered_vars.push_back(name);
   }
 
-  inline void KinematicsProcessor::Define(const std::string& name, const std::string& func, const std::vector<ParticleNames_t>& particles) {
-    std::string kine_parts = "{";
-    for(const auto& pnames : particles){
-      ParticleNames_t suffixed_names;
-      for(const auto& p : pnames) suffixed_names.push_back(p + _suffix);
-      kine_parts += util::combineVectorToString(util::prependToAll(suffixed_names, consts::data_type::Kine()));
-      kine_parts += ",";
-    }
-    kine_parts.pop_back(); kine_parts += "}";
-    
-    _reaction->Define(FullName(name), util::createFunctionCallStringFromVec("rad::util::ApplyKinematics", 
-                                       {func, kine_parts, (_prefix + consts::KineComponents() + _suffix)}));
-    _registered_vars.push_back(name);
-  }
+  // inline void KinematicsProcessor::Define(const std::string& name, const std::string& func, const std::vector<ParticleNames_t>& particles) {
+  //   //    cout <<"KinematicsProcessor::Define "<<endl;
+  //   std::string kine_parts = "{";
+  //   for(const auto& pnames : particles){
+  //     ParticleNames_t suffixed_names;
+  //     for(const auto& p : pnames) suffixed_names.push_back(p + _suffix);
+  //     kine_parts += util::combineVectorToString(util::prependToAll(suffixed_names, consts::data_type::Kine()));
+  //     kine_parts += ",";
+  //   }
+  //   kine_parts.pop_back(); kine_parts += "}";
+  //   cout <<"KinematicsProcessor::Define "<< util::createFunctionCallStringFromVec("rad::util::ApplyKinematics", 
+  // 										  {func, kine_parts, (_prefix + consts::KineComponents() + _suffix)})<<endl;
+  //   _reaction->Define(FullName(name), util::createFunctionCallStringFromVec("rad::util::ApplyKinematics", 
+  //                                      {func, kine_parts, (_prefix + consts::KineComponents() + _suffix)}));
+  //   _registered_vars.push_back(name);
+  // }
 
   // --- Shortcuts ---
   inline void KinematicsProcessor::Mass(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg) {
@@ -446,6 +447,16 @@ namespace rad {
   }
   inline void KinematicsProcessor::Pt(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg) {
     RegisterCalc(name, rad::FourVectorPtCalc<rad::RVecResultType, rad::RVecResultType>, {particles_pos, particles_neg});
+  }
+  inline void KinematicsProcessor::ParticleTheta(const std::string& name, const ParticleNames_t& particles) {
+    //here we actually perform a loop over combies
+    //so we need to call a dunction which returns
+    //a single entry each time.
+    //rad::ThreeVectorTheta has an overwite which only uses the
+    //first entry of the first entry  in the given RVecIndices list
+    for(const auto& p: particles){
+      RegisterCalc(p+"_"+ name, rad::ThreeVectorTheta, {{p}});
+    }
   }
   
   inline void KinematicsProcessor::PrintReactionMap() const {
@@ -490,518 +501,3 @@ namespace rad {
   }
 
 } // namespace rad
-
-// /**
-//  * @file KinematicsProcessor.h
-//  * @brief The Computational Engine for combinatorial kinematic analysis.
-//  * @details
-//  * This class orchestrates the combinatorial logic. It:
-//  * 1. Consumes the combinatorial indices from the `ParticleCreator`.
-//  * 2. Runs the "Event Loop" (via `operator()`) to generate 4-vectors for every valid combination.
-//  * 3. Provides an API to register calculations (Mass, Pt, etc.) on these combinations.
-//  * 4. Prepares flattened data columns for `SnapshotCombi`.
-//  */
-
-// #pragma once
-
-// #include "ConfigReaction.h"
-// #include "StringUtilities.h"
-// #include "RVecHelpers.h"
-// #include "ParticleCreator.h"
-// #include "KinematicsDispatch.h"
-// #include "KineCalculation.h" 
-// #include "BasicKinematics.h"
-// #include "ParticleModifier.h" 
-
-// #include <vector>
-// #include <string>
-// #include <memory>
-// #include <cmath>
-// #include <iomanip>
-
-// namespace rad {
-
-//   using ROOT::RVec;
-//   using RVecRVecD = ROOT::RVec<ROOT::RVecD>;
-//   using RVecRVecI = ROOT::RVec<ROOT::RVecI>;
-
-//   /**
-//    * @class KinematicsProcessor
-//    * @brief Manages the kinematic calculations and RDF graph construction.
-//    */
-//   class KinematicsProcessor {
-
-//   public:
-//     /// Type alias for the complex nested vector structure [Combination][Component][Particle]
-//     using CombiOutputVec_t = RVec<RVec<RVecResultType>>;
-
-//     // =================================================================================
-//     // Lifecycle & Initialization
-//     // =================================================================================
-
-//     KinematicsProcessor(ConfigReaction* cr, const std::string& prefix, const std::string& suffix = "");
-    
-//     KinematicsProcessor(const KinematicsProcessor& other, const std::string& new_suffix);
-    
-//     virtual ~KinematicsProcessor() = default;
-
-//     /**
-//      * @brief Creates a deep copy of this processor with a new prefix (e.g., for different particle types).
-//      */
-//     std::shared_ptr<KinematicsProcessor> CloneForType(const std::string& new_prefix, bool copyModifiers = false);
-
-//     /**
-//      * @brief Creates a linked copy that shares the master's configuration but has a different suffix.
-//      */
-//     std::shared_ptr<KinematicsProcessor> CloneLinked(const std::string& suffix);
-
-//     /** @brief Initializes the processor and defines columns in the RDF graph. */
-//     void Init();
-    
-//     /** @brief Initializes as a slave to a master processor (sharing indices). */
-//     void InitLinked(const KinematicsProcessor& master);
-
-//     // =================================================================================
-//     // Core Execution (Functor)
-//     // =================================================================================
-
-//     /**
-//      * @brief The main computational kernel.
-//      * @details Generates Px, Py, Pz, M for every combination defined in `indices`.
-//      * Applies Pre/Post modifiers (Momentum corrections, Energy loss, etc.).
-//      */
-//     template<typename Tp, typename Tm> 
-//     CombiOutputVec_t operator()(const RVecIndices& indices, 
-//                                 const Tp& px, const Tp& py, const Tp& pz, const Tm& m,
-//                                 const RVecRVecD& aux_pre_d, const RVecRVecI& aux_pre_i,
-//                                 const RVecRVecD& aux_post_d, const RVecRVecI& aux_post_i) const;
-
-//     /** * @brief Defines flattened columns for Px, Py, Pz, M for every particle. 
-//      * @details 
-//      * Essential for `SnapshotCombi`. This creates scalar RVecs (one entry per combination)
-//      * effectively flattening the nested `CombiOutputVec_t` structure.
-//      */
-//     void DefineNewComponentVecs();
-
-//     // =================================================================================
-//     // Configuration Helpers
-//     // =================================================================================
-
-//     void DefineAux();
-
-//     void SetGroup(const std::string& groupName, const std::vector<std::string>& particles);
-
-//     void SetMesonParticles(const std::vector<std::string>& particles);
-
-//     void SetBaryonParticles(const std::vector<std::string>& particles);
-
-//     /** @brief Re-target this processor to a new Reaction (used when cloning Managers). */
-//     void SetReaction(ConfigReaction* cr) { 
-//       _reaction = cr; 
-//       _creator.SetReaction(cr); 
-//     }
-    
-//     // =================================================================================
-//     // Accessors
-//     // =================================================================================
-
-//     ParticleCreator& Creator();
-//     const ParticleCreator& Creator() const;
-    
-//     ParticleModifier& PreModifier();
-//     ParticleModifier& PostModifier();
-
-//     ConfigReaction* Reaction() const;
-//     std::string GetSuffix() const;
-//     std::string GetPrefix() const;
-    
-//     std::string FullName(const std::string& baseName) const;
-
-//     /** @brief Get list of all variables defined via RegisterCalc/Mass/Pt etc. */
-//     const std::vector<std::string>& GetDefinedNames() const { 
-//       return _registered_vars; 
-//     }
-
-//     // =================================================================================
-//     // Definition API & Calculation Registration
-//     // =================================================================================
-    
-//     /** @brief Registers a calculation based on the RVecIndexMap (e.g. Mass, Missing Mass). */
-//     void RegisterCalc(const std::string& name, KineCalculation::MapKernel func);
-    
-//     /** @brief Registers a calculation based on explicit particle indices. */
-//     void RegisterCalc(const std::string& name, KineCalculation::IndexKernel func, std::vector<ParticleNames_t> particles);
-
-//     // --- Legacy String-Based Definition ---
-    
-//     void Define(const std::string& name, const std::string& func);
-//     void Define(const std::string& name, const std::string& func, const std::vector<ParticleNames_t>& particles);
-
-//     template <typename Lambda>
-//     void DefineKernel(const std::string& name, Lambda&& func);
-
-//     // =================================================================================
-//     // Physics Shortcuts
-//     // =================================================================================
-
-//     void Mass(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg={});
-//     void Mass2(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg={});
-//     void Pt(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg={});
-    
-//     void PrintReactionMap() const;
- 
-//   private:
-//     ConfigReaction* _reaction = nullptr;
-//     std::string _prefix; 
-//     std::string _suffix; 
-    
-//     bool _isInitialized = false; 
-    
-//     ParticleCreator _creator;
-//     ParticleModifier _preModifier;
-//     ParticleModifier _postModifier;
-
-//     std::vector<KineCalculation> _calculations;
-//     std::vector<std::string> _registered_vars; //names of calculations
-    
-//     std::vector<std::shared_ptr<KinematicsProcessor>> _type_clones;
-//     std::vector<std::shared_ptr<KinematicsProcessor>> _linked_clones;
-
-//     struct GroupOverride {
-//         std::string name;
-//         std::vector<std::string> particles;
-//     };
-//     std::vector<GroupOverride> _groupOverrides;
-
-//     void ApplyGroupOverrides();
-//   };
-
-//   // =================================================================================
-//   // IMPLEMENTATION: KinematicsProcessor
-//   // =================================================================================
-
-//   inline KinematicsProcessor::KinematicsProcessor(ConfigReaction* cr, const std::string& prefix, const std::string& suffix) 
-//     : _reaction{cr}, _prefix{prefix}, _suffix{suffix}, _creator{cr, prefix, suffix} 
-//   {}
-
-//   inline KinematicsProcessor::KinematicsProcessor(const KinematicsProcessor& other, const std::string& new_suffix)
-//     : _reaction(other._reaction),
-//       _prefix(other._prefix),
-//       _suffix(new_suffix),
-//       _creator(other._creator, new_suffix),
-//       _preModifier(other._preModifier),    
-//       _postModifier(other._postModifier),
-//       _calculations(other._calculations), 
-//       _groupOverrides(other._groupOverrides) 
-//   {}
-
-//   inline std::shared_ptr<KinematicsProcessor> KinematicsProcessor::CloneForType(const std::string& new_prefix, bool copyModifiers) {
-//       auto clone = std::make_shared<KinematicsProcessor>(_reaction, new_prefix, _suffix);
-//       clone->Creator().CopyConfigurationFrom(_creator); 
-//       clone->Creator().PortGroupsFrom(_creator); 
-//       clone->_calculations = _calculations;
-//       if(copyModifiers) {
-//           clone->_preModifier = _preModifier;
-//           clone->_postModifier = _postModifier;
-//       }
-//       clone->_groupOverrides = _groupOverrides;
-//       _type_clones.push_back(clone); 
-//       return clone;
-//   }
-
-//   inline std::shared_ptr<KinematicsProcessor> KinematicsProcessor::CloneLinked(const std::string& suffix) {
-//       auto clone = std::make_shared<KinematicsProcessor>(*this, suffix);
-//       _linked_clones.push_back(clone); 
-//       return clone;
-//   }
-
-//   inline void KinematicsProcessor::Init() {
-//     if (_isInitialized) return; 
-//     _isInitialized = true;
-
-//     ApplyGroupOverrides();
-//     Creator().InitMap(); 
-//     _preModifier.Init(Creator());
-//     _postModifier.Init(Creator());
-//     DefineAux();
-//     DefineKinematicsProcessor(*_reaction, *this, _prefix);
-
-//     for(auto& calc : _calculations) {
-//         calc.Define(this); 
-//     }
-
-//     for(auto& clone : _type_clones) {
-//         clone->Init();
-//     }
-
-//     for(auto& clone : _linked_clones) {
-//         clone->InitLinked(*this);
-//     }
-//   }
-
-//   inline void KinematicsProcessor::InitLinked(const KinematicsProcessor& master) {
-//     if (_isInitialized) return; 
-    
-//     if(_suffix == master.GetSuffix() && _prefix == master.GetPrefix()) 
-//         throw std::runtime_error("InitLinked Error: Linked processor must have different signature than Master.");
-    
-//     _isInitialized = true;
-
-//     ApplyGroupOverrides(); 
-//     _creator.AdoptIndices(master.Creator());
-//     _creator.RebuildReactionMap(); 
-    
-//     _preModifier.Init(Creator());
-//     _postModifier.Init(Creator());
-//     DefineAux();
-//     DefineKinematicsProcessor(*_reaction, *this, _prefix);
-    
-//     for(auto& calc : _calculations) {
-//         calc.Define(this); 
-//     }
-
-//     for(auto& clone : _type_clones) {
-//         clone->Init();
-//     }
-//   }
-
-//   inline void KinematicsProcessor::ApplyGroupOverrides() {
-//       for(const auto& group : _groupOverrides) {
-//           Creator().OverrideGroup(group.name, group.particles); 
-//       }
-//   }
-
-//   inline void KinematicsProcessor::SetGroup(const std::string& groupName, const std::vector<std::string>& particles) {
-//       _groupOverrides.push_back({groupName, particles});
-//   }
-
-//   inline void KinematicsProcessor::SetMesonParticles(const std::vector<std::string>& particles) {
-//       SetGroup(rad::consts::Mesons(), particles);
-//   }
-
-//   inline void KinematicsProcessor::SetBaryonParticles(const std::vector<std::string>& particles) {
-//       SetGroup(rad::consts::Baryons(), particles);
-//   }
-
-//   inline void KinematicsProcessor::RegisterCalc(const std::string& name, KineCalculation::MapKernel func) {
-//       _calculations.emplace_back(name, func);
-//       _registered_vars.push_back(name);
-//   }
-
-//   inline void KinematicsProcessor::RegisterCalc(const std::string& name, KineCalculation::IndexKernel func, std::vector<ParticleNames_t> particles) {
-//       _calculations.emplace_back(name, func, particles);
-//       _registered_vars.push_back(name);
-//   }
-
-//   inline void KinematicsProcessor::DefineAux() {
-//       auto define_pack = [&](const std::string& name, const std::vector<std::string>& cols, bool is_int) {
-//           if(cols.empty()) {
-//               if(is_int) _reaction->Define(name, [](){ return RVecRVecI{}; }, {});
-//               else       _reaction->Define(name, [](){ return RVecRVecD{}; }, {});
-//               return;
-//           }
-//           _reaction->Define(name, rad::util::createPackVectorString(cols));
-//       };
-//       define_pack(_prefix + "aux_pre_d" + _suffix + DoNotWriteTag(), _preModifier.GetAuxDoubleCols(), false);
-//       define_pack(_prefix + "aux_pre_i" + _suffix + DoNotWriteTag(), _preModifier.GetAuxIntCols(), true);
-//       define_pack(_prefix + "aux_post_d" + _suffix + DoNotWriteTag(), _postModifier.GetAuxDoubleCols(), false);
-//       define_pack(_prefix + "aux_post_i" + _suffix + DoNotWriteTag(), _postModifier.GetAuxIntCols(), true);
-//   }
-  
-//   inline ParticleCreator& KinematicsProcessor::Creator() { return _creator; }
-//   inline const ParticleCreator& KinematicsProcessor::Creator() const { return _creator; }
-  
-//   inline ParticleModifier& KinematicsProcessor::PreModifier() { return _preModifier; }
-//   inline ParticleModifier& KinematicsProcessor::PostModifier() { return _postModifier; }
-
-//   inline ConfigReaction* KinematicsProcessor::Reaction() const { return _reaction; }
-//   inline std::string KinematicsProcessor::GetSuffix() const { return _suffix; }
-//   inline std::string KinematicsProcessor::GetPrefix() const { return _prefix; }
-  
-//   inline std::string KinematicsProcessor::FullName(const std::string& baseName) const { 
-//       return _prefix + baseName + _suffix; 
-//   }
-
-//   // --- Core Operator ---
-//   template<typename Tp, typename Tm> 
-//   inline KinematicsProcessor::CombiOutputVec_t KinematicsProcessor::operator()(
-//         const RVecIndices& indices, const Tp& px, const Tp& py, const Tp& pz, const Tm& m,
-//         const RVecRVecD& aux_pre_d, const RVecRVecI& aux_pre_i,
-//         const RVecRVecD& aux_post_d, const RVecRVecI& aux_post_i) const 
-//   {
-//     const auto Ncomponents = 4; // x, y, z, m
-//     const auto Nparticles0 = indices.size(); // Number of input particles
-//     const auto Nparticles = Nparticles0 + _creator.GetNCreated(); // Total particles (Input + Created)
-    
-//     if (Nparticles == 0) return CombiOutputVec_t(Ncomponents); 
-          
-//     const auto Ncombis = indices[0].size(); // Number of combinations in this event
-//     CombiOutputVec_t result(Ncombis, RVec<RVecResultType>(Ncomponents, RVecResultType(Nparticles)));
-
-//     ROOT::RVecD temp_px(Nparticles, consts::InvalidEntry<double>());
-//     ROOT::RVecD temp_py(Nparticles, consts::InvalidEntry<double>());
-//     ROOT::RVecD temp_pz(Nparticles, consts::InvalidEntry<double>());
-//     ROOT::RVecD temp_m(Nparticles, consts::InvalidEntry<double>());
-
-//     AuxCacheD cache_pre_d(aux_pre_d.size(), ROOT::RVecD(Nparticles));
-//     AuxCacheI cache_pre_i(aux_pre_i.size(), ROOT::RVecI(Nparticles));
-//     AuxCacheD cache_post_d(aux_post_d.size(), ROOT::RVecD(Nparticles));
-//     AuxCacheI cache_post_i(aux_post_i.size(), ROOT::RVecI(Nparticles));
-    
-//     for (size_t icombi = 0; icombi < Ncombis; ++icombi) {
-      
-//       for (size_t ip = 0; ip < Nparticles0; ++ip) {
-//         size_t iparti = _creator.GetReactionIndex(ip);                
-//         const int original_index = indices[ip][icombi];     
-
-//         temp_px[iparti] = px[original_index];
-//         temp_py[iparti] = py[original_index];
-//         temp_pz[iparti] = pz[original_index];
-//         temp_m[iparti]  = m[original_index];
-
-//         for(size_t v=0; v<aux_pre_d.size(); ++v) cache_pre_d[v][iparti] = aux_pre_d[v][original_index];
-//         for(size_t v=0; v<aux_pre_i.size(); ++v) cache_pre_i[v][iparti] = aux_pre_i[v][original_index];
-//       }
-
-//       _preModifier.Apply(temp_px, temp_py, temp_pz, temp_m, cache_pre_d, cache_pre_i);
-      
-//       _creator.ApplyCreation(temp_px, temp_py, temp_pz, temp_m);
-      
-//       _postModifier.Apply(temp_px, temp_py, temp_pz, temp_m, cache_post_d, cache_post_i);
-  
-//       result[icombi][OrderX()] = temp_px;
-//       result[icombi][OrderY()] = temp_py;
-//       result[icombi][OrderZ()] = temp_pz;
-//       result[icombi][OrderM()] = temp_m;
-//     }
-
-//     return result;
-//   }
-
-//   // --- Snapshot Support ---
-//   inline void KinematicsProcessor::DefineNewComponentVecs() {
-
-//     // 1. Get particle names
-//        auto particle_names = _creator.GetParticleNames();
-        
-//        // 2. Define Components mapping
-//        // We use 0, 1, 2, 3 explicitly to match the inner vector structure [Px, Py, Pz, M]
-//        const std::vector<std::pair<std::string, int>> components = {
-//          {"_px", 0}, {"_py", 1}, {"_pz", 2}, {"_m", 3}
-//        };
-       
-//        std::string resultColName = _prefix + consts::KineComponents() + _suffix;
-
-//        for (const auto& pName : particle_names) {
-//            size_t idx = _creator.GetReactionIndex(pName);
-//            std::string full_pName = FullName(pName);
-
-//            for (const auto& comp : components) {
-//                std::string suffix = comp.first;
-//                auto compIdx = comp.second;
-// 	       //store variable for auto tree colmn
-// 	       _registered_vars.push_back(pName+suffix);
-//                // Direct Component Copy
-//                _reaction->Define(full_pName + suffix, 
-//                  [idx,compIdx](const CombiOutputVec_t& res) {
-//                    ROOT::RVec<double> out(res.size());
-//                    for(size_t i=0; i<res.size(); ++i) {
-//                      // res[i] = List of Components (RVec<RVec<double>>)
-//                      // res[i][compIdx] = List of Particles (RVec<double>)
-//                      // res[i][compIdx][idx] = Value (double)
-//                      out[i] = res[i][compIdx][idx];
-//                    }
-//                    return out;
-//                  }, 
-//                  {resultColName}
-//                  );
-//            }
-//        }
-//   }
-  
-
-//   // --- Definitions ---
-
-//   inline void KinematicsProcessor::Define(const std::string& name, const std::string& func) {
-//       std::string colName = FullName(name); 
-//       _reaction->Define(colName, util::createFunctionCallStringFromVec("rad::util::ApplyKinematics", 
-//                                       {func, Creator().GetMapName(), (_prefix + consts::KineComponents() + _suffix)}));
-//   }
-  
-//   template <typename Lambda>
-//   inline void KinematicsProcessor::DefineKernel(const std::string& name, Lambda&& func) {
-//       ROOT::RDF::ColumnNames_t cols = { Creator().GetMapName(), _prefix + consts::KineComponents() + _suffix };
-//       auto apply_func = [func](const RVecIndexMap& map, const ROOT::RVec<ROOT::RVec<RVecResultType>>& comps){
-//         return rad::util::ApplyKinematics(func, map, comps);
-//       };
-
-//       _reaction->Define(FullName(name), apply_func, cols);
-//       _registered_vars.push_back(name);
-//   }
-
-//   inline void KinematicsProcessor::Define(const std::string& name, const std::string& func, const std::vector<ParticleNames_t>& particles) {
-//     std::string kine_parts = "{";
-//     for(const auto& pnames : particles){
-//       ParticleNames_t suffixed_names;
-//       for(const auto& p : pnames) suffixed_names.push_back(p + _suffix);
-//       kine_parts += util::combineVectorToString(util::prependToAll(suffixed_names, consts::data_type::Kine()));
-//       kine_parts += ",";
-//     }
-//     kine_parts.pop_back(); kine_parts += "}";
-    
-//     _reaction->Define(FullName(name), util::createFunctionCallStringFromVec("rad::util::ApplyKinematics", 
-//                                       {func, kine_parts, (_prefix + consts::KineComponents() + _suffix)}));
-//   }
-
-//   // --- Shortcuts ---
-//   inline void KinematicsProcessor::Mass(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg) {
-//     RegisterCalc(name, rad::FourVectorMassCalc<rad::RVecResultType, rad::RVecResultType>, {particles_pos, particles_neg});
-//   }
-//   inline void KinematicsProcessor::Mass2(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg) {
-//     RegisterCalc(name, rad::FourVectorMass2Calc<rad::RVecResultType, rad::RVecResultType>, {particles_pos, particles_neg});
-//   }
-//   inline void KinematicsProcessor::Pt(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg) {
-//     RegisterCalc(name, rad::FourVectorPtCalc<rad::RVecResultType, rad::RVecResultType>, {particles_pos, particles_neg});
-//   }
-  
-//   inline void KinematicsProcessor::PrintReactionMap() const {
-//     std::cout << "\n=== KinematicsProcessor [" << _prefix << "] " << _suffix << " Reaction Map ===" << std::endl;
-//     std::cout << std::left << std::setw(20) << "Particle Name" << "Index" << std::endl;
-//     std::cout << std::string(30, '-') << std::endl;
-//     for(const auto& [name, idx] : _creator.GetIndexMap()) {
-//       std::cout << std::left << std::setw(20) << name << idx << std::endl;
-//     }
-//     std::cout << "========================================\n" << std::endl;
-//   }
-
-//   // =================================================================================
-//   // IMPLEMENTATION: KineCalculation::Define
-//   // =================================================================================
-  
-//   inline void KineCalculation::Define(KinematicsProcessor* processor) {
-//       if (_type == Type::Map) {
-//           processor->DefineKernel(_name, _mapFunc);
-//       } 
-//       else if (_type == Type::Index) {
-//           RVecIndices resolved_indices;
-//           for(const auto& group : _particles) {
-//               Indices_t idxs;
-//               for(const auto& pname : group) {
-//                   idxs.push_back(processor->Creator().GetReactionIndex(pname));
-//               }
-//               resolved_indices.push_back(idxs);
-//           }
-
-//           auto func_ptr = _indexFunc; 
-//           auto adapter = [resolved_indices, func_ptr](const RVecIndexMap&, 
-//                                                       const RVecResultType& px, const RVecResultType& py, 
-//                                                       const RVecResultType& pz, const RVecResultType& m) 
-//           {
-//               return func_ptr(resolved_indices, px, py, pz, m);
-//           };
-
-//           processor->DefineKernel(_name, adapter);
-//       }
-//   }
-
-// } // namespace rad

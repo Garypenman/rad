@@ -25,7 +25,7 @@
 
 namespace rad {
 
-    using StructuredNames_t = std::vector<ParticleNames_t>;
+    using StructuredNames_t = ROOT::RVec<ParticleNames_t>;
     using IndexMap_t = std::unordered_map<std::string, int>;
     
     using ParticleCreatorFunc_t = void (*)(
@@ -81,20 +81,20 @@ namespace rad {
        * @param order The integer ID of the group.
        * @param particles Vector of particle names to include in this group.
        */
-      void OverrideGroup(int order, const std::vector<std::string>& particles);
+      void OverrideGroup(int order, const ROOT::RVec<std::string>& particles);
 
       /**
        * @brief Helper to override a group by its abstract name.
        * @param abstractName The abstract name (e.g., "Baryons", "Mesons").
        * @param particles Vector of particle names to include.
        */
-      void OverrideGroup(const std::string& abstractName, const std::vector<std::string>& particles);
+      void OverrideGroup(const std::string& abstractName, const ROOT::RVec<std::string>& particles);
 
       /**
        * @brief Sets the names of the beam particles.
        * @param beams Vector of beam particle names (usually {Ion, Electron}).
        */
-      void SetBeamNames(const std::vector<std::string>& beams);
+      void SetBeamNames(const ROOT::RVec<std::string>& beams);
       
       /**
        * @brief Forces an input particle to be registered in the map.
@@ -192,7 +192,7 @@ namespace rad {
       std::string GetMapName() const;
 
       /** @return A list of input columns required by this creator (calculated dependencies). */
-      std::vector<std::string> GetPriorDependencies();
+      ROOT::RVec<std::string> GetPriorDependencies();
       
       /** @brief Assigns indices to a list of names. */
       Indices_t CreateIndices(IndexMap_t& nameIndex, const ParticleNames_t& names, size_t& idx);
@@ -212,16 +212,16 @@ namespace rad {
       std::string _prefix; 
       std::string _suffix; 
       
-      std::vector<std::string> _beam_names;
-      std::vector<std::string> _forced_inputs; 
+      ROOT::RVec<std::string> _beam_names;
+      ROOT::RVec<std::string> _forced_inputs; 
 
       std::map<int, std::string> _config_groups; 
-      std::map<int, std::vector<std::string>> _explicit_groups; 
+      std::map<int, ROOT::RVec<std::string>> _explicit_groups; 
 
       ParticleNames_t _p_names;
-      std::vector<ParticleCreatorFunc_t> _p_creators;
-      std::vector<ParticleNames_t> _p_required;
-      std::vector<StructuredNames_t> _p_stru_depends;
+      ROOT::RVec<ParticleCreatorFunc_t> _p_creators;
+      ROOT::RVec<ParticleNames_t> _p_required;
+      ROOT::RVec<StructuredNames_t> _p_stru_depends;
       ROOT::RVec<RVecIndices> _p_dep_indices; 
       std::set<std::string> _dependencies;
       
@@ -232,7 +232,7 @@ namespace rad {
       IndexMap_t _createIndex;
       Indices_t _input2ReactionIndex; 
 
-      void RedefineGroupColumn(const std::string& name, const std::vector<std::string>& cols);
+      void RedefineGroupColumn(const std::string& name, const ROOT::RVec<std::string>& cols);
       int GetIndexSafe(const std::string& name) const;
     };
 
@@ -256,15 +256,15 @@ namespace rad {
           _config_groups[order] = groupName;
           _explicit_groups.erase(order); 
     }
-    inline void ParticleCreator::OverrideGroup(int order, const std::vector<std::string>& particles) {
+    inline void ParticleCreator::OverrideGroup(int order, const ROOT::RVec<std::string>& particles) {
           _explicit_groups[order] = particles;
           _config_groups.erase(order);     
     }
-    inline void ParticleCreator::OverrideGroup(const std::string& abstractName, const std::vector<std::string>& particles) {
+    inline void ParticleCreator::OverrideGroup(const std::string& abstractName, const ROOT::RVec<std::string>& particles) {
           if(abstractName == consts::Baryons()) OverrideGroup(consts::OrderBaryons(), particles);
           else if(abstractName == consts::Mesons()) OverrideGroup(consts::OrderMesons(), particles);
     }
-    inline void ParticleCreator::SetBeamNames(const std::vector<std::string>& beams) { _beam_names = beams; }
+    inline void ParticleCreator::SetBeamNames(const ROOT::RVec<std::string>& beams) { _beam_names = beams; }
     
     inline void ParticleCreator::RequireParticle(const std::string& name) {
           if(std::find(_forced_inputs.begin(), _forced_inputs.end(), name) == _forced_inputs.end())
@@ -287,8 +287,8 @@ namespace rad {
     }
     inline void ParticleCreator::Diff(const std::string& name, const StructuredNames_t& depends) { AddParticle(name, ParticleCreateByDiff, depends); }
 
-    inline std::vector<std::string> ParticleCreator::GetPriorDependencies() {
-        std::vector<std::string> vec_deps(_dependencies.begin(), _dependencies.end());
+    inline ROOT::RVec<std::string> ParticleCreator::GetPriorDependencies() {
+        ROOT::RVec<std::string> vec_deps(_dependencies.begin(), _dependencies.end());
         util::removeExistingStrings(vec_deps, _p_names);
         return vec_deps;
     }
@@ -318,7 +318,7 @@ namespace rad {
       logicalInputNames.insert(logicalInputNames.end(), _beam_names.begin(), _beam_names.end());
       logicalInputNames.insert(logicalInputNames.end(), _forced_inputs.begin(), _forced_inputs.end());
 
-      std::vector<int> orders = {consts::OrderBaryons(), consts::OrderMesons(), consts::OrderScatEle()};
+      ROOT::RVec<int> orders = {consts::OrderBaryons(), consts::OrderMesons(), consts::OrderScatEle()};
       for(int order : orders) {
           if(_explicit_groups.count(order)) {
               const auto& list = _explicit_groups[order];
@@ -327,7 +327,7 @@ namespace rad {
           else if (_config_groups.count(order)) {
               try {
                  std::string uniqueGroupName = _config_groups[order] + _suffix;
-                 std::vector<std::string> particles;
+                 ROOT::RVec<std::string> particles;
                  try { particles = _reaction->GetGroup(_prefix + uniqueGroupName); } 
                  catch(...) { particles = _reaction->GetGroup(_prefix + _config_groups[order]); }
                  
@@ -365,7 +365,7 @@ namespace rad {
           if (_config_groups.count(order)) {
               try {
                   std::string uniqueName = _config_groups[order] + _suffix;
-                  std::vector<std::string> particles;
+                  ROOT::RVec<std::string> particles;
                   try { particles = _reaction->GetGroup(_prefix + uniqueName); } 
                   catch(...) { particles = _reaction->GetGroup(_prefix + _config_groups[order]); }
                   
@@ -456,7 +456,7 @@ namespace rad {
 
 // namespace rad {
 
-//     using StructuredNames_t = std::vector<ParticleNames_t>;
+//     using StructuredNames_t = ROOT::RVec<ParticleNames_t>;
 //     using IndexMap_t = std::unordered_map<std::string, int>;
     
 //     using ParticleCreatorFunc_t = void (*)(
@@ -523,18 +523,18 @@ namespace rad {
 //        * @param order The integer ID of the group.
 //        * @param particles Vector of particle names to include in this group.
 //        */
-//       void OverrideGroup(int order, const std::vector<std::string>& particles);
+//       void OverrideGroup(int order, const ROOT::RVec<std::string>& particles);
       
 //       /** * @brief Helper to override a group by its abstract name.
 //        * @param abstractName The abstract name (e.g., "Baryons", "Mesons").
 //        * @param particles Vector of particle names to include.
 //        */
-//       void OverrideGroup(const std::string& abstractName, const std::vector<std::string>& particles);
+//       void OverrideGroup(const std::string& abstractName, const ROOT::RVec<std::string>& particles);
 
 //       /** * @brief Sets the names of the beam particles.
 //        * @param beams Vector of beam particle names (usually {Ion, Electron}).
 //        */
-//       void SetBeamNames(const std::vector<std::string>& beams);
+//       void SetBeamNames(const ROOT::RVec<std::string>& beams);
       
 //       /** * @brief Forces an input particle to be registered in the map.
 //        * @details Essential for Master processors when a Linked Clone needs a particle 
@@ -655,7 +655,7 @@ namespace rad {
 //       std::string GetMapName() const;
 
 //       /** @return A list of input columns required by this creator. */
-//       std::vector<std::string> GetPriorDependencies();
+//       ROOT::RVec<std::string> GetPriorDependencies();
       
 //       /** * @brief Helper to assign indices to a list of names.
 //        * @param nameIndex The map to populate.
@@ -682,16 +682,16 @@ namespace rad {
 //       std::string _prefix; 
 //       std::string _suffix; 
       
-//       std::vector<std::string> _beam_names;
-//       std::vector<std::string> _forced_inputs; 
+//       ROOT::RVec<std::string> _beam_names;
+//       ROOT::RVec<std::string> _forced_inputs; 
 
 //       std::map<int, std::string> _config_groups; 
-//       std::map<int, std::vector<std::string>> _explicit_groups; 
+//       std::map<int, ROOT::RVec<std::string>> _explicit_groups; 
 
 //       ParticleNames_t _p_names;
-//       std::vector<ParticleCreatorFunc_t> _p_creators;
-//       std::vector<ParticleNames_t> _p_required;
-//       std::vector<StructuredNames_t> _p_stru_depends;
+//       ROOT::RVec<ParticleCreatorFunc_t> _p_creators;
+//       ROOT::RVec<ParticleNames_t> _p_required;
+//       ROOT::RVec<StructuredNames_t> _p_stru_depends;
 //       ROOT::RVec<RVecIndices> _p_dep_indices; 
 //       std::set<std::string> _dependencies;
       
@@ -703,7 +703,7 @@ namespace rad {
 //       Indices_t _input2ReactionIndex; 
 
 //       /** @brief Helper to redefine group columns safely handling RVec types. */
-//       void RedefineGroupColumn(const std::string& name, const std::vector<std::string>& cols);
+//       void RedefineGroupColumn(const std::string& name, const ROOT::RVec<std::string>& cols);
       
 //       /** @brief Safety wrapper for index lookup to prevent confusing out_of_range errors. */
 //       int GetIndexSafe(const std::string& name) const;
@@ -739,15 +739,15 @@ namespace rad {
 //           _config_groups[order] = groupName;
 //           _explicit_groups.erase(order); 
 //     }
-//     inline void ParticleCreator::OverrideGroup(int order, const std::vector<std::string>& particles) {
+//     inline void ParticleCreator::OverrideGroup(int order, const ROOT::RVec<std::string>& particles) {
 //           _explicit_groups[order] = particles;
 //           _config_groups.erase(order);    
 //     }
-//     inline void ParticleCreator::OverrideGroup(const std::string& abstractName, const std::vector<std::string>& particles) {
+//     inline void ParticleCreator::OverrideGroup(const std::string& abstractName, const ROOT::RVec<std::string>& particles) {
 //           if(abstractName == consts::Baryons()) OverrideGroup(consts::OrderBaryons(), particles);
 //           else if(abstractName == consts::Mesons()) OverrideGroup(consts::OrderMesons(), particles);
 //     }
-//     inline void ParticleCreator::SetBeamNames(const std::vector<std::string>& beams) { _beam_names = beams; }
+//     inline void ParticleCreator::SetBeamNames(const ROOT::RVec<std::string>& beams) { _beam_names = beams; }
     
 //     inline void ParticleCreator::RequireParticle(const std::string& name) {
 //           if(std::find(_forced_inputs.begin(), _forced_inputs.end(), name) == _forced_inputs.end())
@@ -773,7 +773,7 @@ namespace rad {
 //             try {
 //                 // Fetch the list of particles from the Parent's RDF definition
 //                 auto particles = _reaction->GetGroup(parentGroupFull);
-//                 std::vector<std::string> newParticles;
+//                 ROOT::RVec<std::string> newParticles;
                 
 //                 // For each particle, strip the parent prefix and prep for the new prefix
 //                 // e.g. "rec_scat_ele" -> "scat_ele" (which will later become "mc_scat_ele")
@@ -808,8 +808,8 @@ namespace rad {
 //     }
 //     inline void ParticleCreator::Diff(const std::string& name, const StructuredNames_t& depends) { AddParticle(name, ParticleCreateByDiff, depends); }
 
-//     inline std::vector<std::string> ParticleCreator::GetPriorDependencies() {
-//         std::vector<std::string> vec_deps(_dependencies.begin(), _dependencies.end());
+//     inline ROOT::RVec<std::string> ParticleCreator::GetPriorDependencies() {
+//         ROOT::RVec<std::string> vec_deps(_dependencies.begin(), _dependencies.end());
 //         util::removeExistingStrings(vec_deps, _p_names);
 //         return vec_deps;
 //     }
@@ -833,7 +833,7 @@ namespace rad {
 //         return indices;
 //     }
 
-//     inline void ParticleCreator::RedefineGroupColumn(const std::string& name, const std::vector<std::string>& cols) {
+//     inline void ParticleCreator::RedefineGroupColumn(const std::string& name, const ROOT::RVec<std::string>& cols) {
 //         size_t n = cols.size();
 //         using RVecI = ROOT::VecOps::RVec<int>;
 //         if(n == 1) _reaction->Redefine(name, [](const RVecI& a){ return a; }, cols);
@@ -862,7 +862,7 @@ namespace rad {
 
 //       // Collect particles from defined Groups (e.g. "Baryons", "ScatEle")
 //       // We check for both explicitly overridden groups and abstract config groups.
-//       std::vector<int> orders = {consts::OrderBaryons(), consts::OrderMesons(), consts::OrderScatEle()};
+//       ROOT::RVec<int> orders = {consts::OrderBaryons(), consts::OrderMesons(), consts::OrderScatEle()};
 //       for(int order : orders) {
 //           if(_explicit_groups.count(order)) {
 //               const auto& list = _explicit_groups[order];
@@ -871,7 +871,7 @@ namespace rad {
 //           else if (_config_groups.count(order)) {
 //               try {
 //                  std::string uniqueGroupName = _config_groups[order] + _suffix;
-//                  std::vector<std::string> particles;
+//                  ROOT::RVec<std::string> particles;
 //                  // Try getting group with full typed name (e.g. "rec_Baryons_miss")
 //                  try { particles = _reaction->GetGroup(_prefix + uniqueGroupName); } 
 //                  catch(...) { particles = _reaction->GetGroup(_prefix + _config_groups[order]); }
@@ -915,7 +915,7 @@ namespace rad {
 //           if (_config_groups.count(order)) {
 //               try {
 //                   std::string uniqueName = _config_groups[order] + _suffix;
-//                   std::vector<std::string> particles;
+//                   ROOT::RVec<std::string> particles;
 //                   try { particles = _reaction->GetGroup(_prefix + uniqueName); } 
 //                   catch(...) { particles = _reaction->GetGroup(_prefix + _config_groups[order]); }
                   
@@ -981,7 +981,7 @@ namespace rad {
 //            std::string uniqueGroupName = groupName + _suffix;
 //            std::string typedUniqueName = _prefix + uniqueGroupName;
            
-//            std::vector<std::string> abstractParticles;
+//            ROOT::RVec<std::string> abstractParticles;
 //            bool groupFound = false;
 
 //            // A. Try fetching exact group from RDF (e.g. "tru_scat_ele_group")
@@ -1023,7 +1023,7 @@ namespace rad {
 //            }
            
 //            // Build dependency list for the group column
-//            std::vector<std::string> colDependencies;
+//            ROOT::RVec<std::string> colDependencies;
 //            for(const auto& p : abstractParticles) {
 //                std::string pName = p;
 //                if(p.find(_prefix) == 0) pName = p.substr(_prefix.length());
@@ -1034,7 +1034,7 @@ namespace rad {
 //            if(_reaction->ColumnExists(typedUniqueName)) {
 //                RedefineGroupColumn(typedUniqueName, colDependencies);
 //            } else {
-//                std::vector<std::string> clean_particles;
+//                ROOT::RVec<std::string> clean_particles;
 //                for(const auto& col : colDependencies) clean_particles.push_back(col.substr(_prefix.length()));
 //                _reaction->SetGroupParticles(uniqueGroupName, _prefix, clean_particles);
 //            }
@@ -1090,7 +1090,7 @@ namespace rad {
 //           if (_config_groups.count(order)) {
 //             try {
 //               std::string uniqueName = _config_groups[order] + _suffix;
-//               std::vector<std::string> particles;
+//               ROOT::RVec<std::string> particles;
 //               try { particles = _reaction->GetGroup(_prefix + uniqueName); } 
 //               catch(...) { particles = _reaction->GetGroup(_prefix + _config_groups[order]); }
 //               ParticleNames_t logicalNames;
@@ -1140,10 +1140,10 @@ namespace rad {
 //         for(auto const& [order, groupName] : _config_groups) {
 //                std::string uniqueGroupName = groupName + _suffix;
 //                std::string typedUniqueName = _prefix + uniqueGroupName;
-//                std::vector<std::string> abstractParticles;
+//                ROOT::RVec<std::string> abstractParticles;
 //                try { abstractParticles = _reaction->GetGroup(typedUniqueName); } 
 //                catch(...) { abstractParticles = _reaction->GetGroup(_prefix + groupName); }
-//                std::vector<std::string> colDependencies;
+//                ROOT::RVec<std::string> colDependencies;
 //                for(const auto& p : abstractParticles) {
 //                    std::string pName = p;
 //                    if(p.find(_prefix) == 0) pName = p.substr(_prefix.length());
@@ -1151,7 +1151,7 @@ namespace rad {
 //                }
 //                if(_reaction->ColumnExists(typedUniqueName)) RedefineGroupColumn(typedUniqueName, colDependencies);
 //                else {
-//                    std::vector<std::string> clean_particles;
+//                    ROOT::RVec<std::string> clean_particles;
 //                    for(const auto& col : colDependencies) clean_particles.push_back(col.substr(_prefix.length()));
 //                    _reaction->SetGroupParticles(uniqueGroupName, _prefix, clean_particles);
 //                }

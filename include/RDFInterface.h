@@ -74,7 +74,7 @@ namespace rad {
          * @param filenames Vector of file paths.
          * @param columns List of columns to read (optional).
          */
-        RDFInterface(const string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns = {});
+        RDFInterface(const string_view treeName, const ROOT::RVec<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns = {});
 
         /**
          * @brief Wraps an existing RDataFrame object.
@@ -162,7 +162,7 @@ namespace rad {
         virtual void BookLazySnapshot(const string& filename) = 0;
         
         /** @brief Helper to remove specific columns from snapshot list. */
-        virtual void RemoveSnapshotColumns(std::vector<string>& cols);
+        virtual void RemoveSnapshotColumns(ROOT::RVec<string>& cols);
 
         /**
          * @brief Schedules a "Combi Snapshot" (Flat Tree).
@@ -178,7 +178,7 @@ namespace rad {
          * @param maskCol Name of the index mask column (from PhysicsSelection).
          */
         void BookSnapshotCombi(const std::string& filename, const std::string& treename,
-                               const std::vector<std::string>& columns,
+                               const ROOT::RVec<std::string>& columns,
                                const std::string& maskCol);
 
       /** * @brief Manually triggers the event loop for all booked snapshots.
@@ -197,7 +197,7 @@ namespace rad {
 
         std::string GetTreeName() const;
         std::string GetFileName() const;
-        std::vector<std::string> GetFileNames() const;
+        ROOT::RVec<std::string> GetFileNames() const;
 
         bool OriginalColumnExists(const string& col);
         bool ColumnExists(const string& col);
@@ -211,9 +211,9 @@ namespace rad {
         RDFstep _base_df;
         
         // List of functions to execute on destruction (deferred snapshots)
-        std::vector<std::function<void()>> _triggerSnapshots;
+        ROOT::RVec<std::function<void()>> _triggerSnapshots;
         
-        std::vector<std::string> _fileNames;
+        ROOT::RVec<std::string> _fileNames;
         std::string _fileName;
         std::string _treeName;
         ROOT::RDF::ColumnNames_t _orig_col_names;
@@ -243,7 +243,7 @@ namespace rad {
         _orig_col_names = _orig_df.GetColumnNames();
     }
 
-    inline RDFInterface::RDFInterface(const string_view treeName, const std::vector<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns) 
+    inline RDFInterface::RDFInterface(const string_view treeName, const ROOT::RVec<std::string>& filenames, const ROOT::RDF::ColumnNames_t& columns) 
     : _orig_df{treeName, filenames, columns}, 
       _curr_df{_orig_df}, 
       _base_df{_orig_df}, 
@@ -310,16 +310,16 @@ namespace rad {
 
     // --- Output & Snapshots ---
 
-    inline void RDFInterface::RemoveSnapshotColumns(std::vector<string>& cols) {
+    inline void RDFInterface::RemoveSnapshotColumns(ROOT::RVec<string>& cols) {
         // Virtual hook: default implementation does nothing.
     }
 
   inline void RDFInterface::BookSnapshotCombi(const std::string& filename, const std::string& treename,
-                                                const std::vector<std::string>& columns,
+                                                const ROOT::RVec<std::string>& columns,
                                                 const std::string& maskCol) 
     {
         // 1. Deduce Types
-        std::vector<ColType> types;
+        ROOT::RVec<ColType> types;
         types.reserve(columns.size());
         
         for(const auto& col : columns) {
@@ -327,7 +327,7 @@ namespace rad {
         }
 
         // 2. Prepare Cols
-        std::vector<std::string> all_cols = columns;
+        ROOT::RVec<std::string> all_cols = columns;
         all_cols.push_back(maskCol);
 
         // 3. Book Action
@@ -364,7 +364,7 @@ namespace rad {
 
     inline std::string RDFInterface::GetTreeName() const { return _treeName; }
     inline std::string RDFInterface::GetFileName() const { return _fileName; }
-    inline std::vector<std::string> RDFInterface::GetFileNames() const { return _fileNames; }
+    inline ROOT::RVec<std::string> RDFInterface::GetFileNames() const { return _fileNames; }
 
     inline bool RDFInterface::OriginalColumnExists(const string& col) {
         return std::find(_orig_col_names.begin(), _orig_col_names.end(), col) != _orig_col_names.end();

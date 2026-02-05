@@ -46,6 +46,7 @@ namespace rad{
   // =================================================================================
 
   inline void HepMCElectro::SetupMC(){
+    cout<< "HepMCElectro::SetupMC() "<< MC()<<endl;
       AddType(MC());
       
       ParticleInjector injector(this);
@@ -61,10 +62,10 @@ namespace rad{
       injector.CreateUnifiedVectors();
  
       // Define standard kinematic variables for all types
-      DefineForAllTypes("phi", Form("rad::ThreeVectorPhi(components_p3)"));
-      DefineForAllTypes("theta", Form("rad::ThreeVectorTheta(components_p3)"));
-      DefineForAllTypes("eta", Form("rad::ThreeVectorEta(components_p3)"));
-      DefineForAllTypes("pmag", Form("rad::ThreeVectorMag(components_p3)"));
+      // DefineForAllTypes("phi", Form("rad::ThreeVectorPhi(components_p3)"));
+      // DefineForAllTypes("theta", Form("rad::ThreeVectorTheta(components_p3)"));
+      // DefineForAllTypes("eta", Form("rad::ThreeVectorEta(components_p3)"));
+      // DefineForAllTypes("pmag", Form("rad::ThreeVectorMag(components_p3)"));
   }
 
   // inline void HepMCElectro::DefineStableMomentumComponents(){
