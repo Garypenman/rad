@@ -19,6 +19,7 @@
 #include "PhysicsSelection.h"
 #include "Histogrammer.h"
 #include "CommonDefines.h"
+#include "Indicing.h"
 
 #include <memory>
 #include <vector>

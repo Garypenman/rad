@@ -50,7 +50,7 @@ void CombiJpsi(){
     // 3. Calculate Invariant Masses
     p.Mass("MassJ",     {"Jpsi"});             
     
-    4. Calculate Mandelstam t (requires beam definition)
+    //4. Calculate Mandelstam t (requires beam definition)
     p.RegisterCalc("tb", rad::physics::TBot);
     p.RegisterCalc("DeltaPhiJxP", rad::DeltaPhi,{{"Jpsi","p"}});
 
