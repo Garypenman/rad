@@ -31,12 +31,23 @@ namespace rad {
   public:
     
     // =========================================================================
+    // Public Enums
+    // =========================================================================
+
+    /** * @brief Discriminator for the type of kernel stored.
+     * @note Must be public for Diagnostic tools to inspect the type.
+     */
+    enum class KernelType { Map, Index };
+
+    // =========================================================================
     // Type Definitions
     // =========================================================================
 
     /**
      * @brief Signature for a Standard Map Kernel.
      * @details Receives the full `RVecIndexMap` containing all particle indices.
+     * The kernel is expected to return a single scalar result (e.g. Mass) for *one* combination.
+     * @return ResultType_t (Scalar double).
      */
     using MapKernel = ResultType_t(*)(const RVecIndexMap&, 
                                       const RVecResultType&, const RVecResultType&, 
@@ -45,6 +56,8 @@ namespace rad {
     /**
      * @brief Signature for an Indexed Kernel.
      * @details Receives a specific list of pre-resolved indices (`RVecIndices`).
+     * The kernel is expected to return a single scalar result (e.g. Mass) for *one* combination.
+     * @return ResultType_t (Scalar double).
      */
     using IndexKernel = ResultType_t(*)(const RVecIndices&, 
                                         const RVecResultType&, const RVecResultType&, 
@@ -84,15 +97,24 @@ namespace rad {
      */
     void Define(KinematicsProcessor* processor);
 
+    // =========================================================================
+    // Accessors
+    // =========================================================================
+
+    /** @return The base name of the calculation column. */
+    std::string GetName() const;
+
+    /** @return The type of kernel (Map or Index). */
+    KernelType GetType() const;
+
   private:
-    enum class KernelType { Map, Index };
-    
     std::string _name;
     KernelType _kern_type;
     
     // Storage (Only one function pointer is active based on _type)
     MapKernel   _mapFunc = nullptr;
     IndexKernel _indexFunc = nullptr;
+    
     ROOT::RVec<ParticleNames_t> _particles;
   };
 
@@ -105,5 +127,9 @@ namespace rad {
 
   inline KineCalculation::KineCalculation(std::string name, IndexKernel func, ROOT::RVec<ParticleNames_t> particles)
       : _name(name), _indexFunc(func), _particles(particles), _kern_type(KernelType::Index) {}
+
+  inline std::string KineCalculation::GetName() const { return _name; }
+  
+  inline KineCalculation::KernelType KineCalculation::GetType() const { return _kern_type; }
 
 } // namespace rad

@@ -207,7 +207,24 @@ namespace rad {
           }
           return names;
       }
-      
+
+      //////////////////////
+      ///Diagnostics
+      ///\brief Print the reaction map.
+      void PrintReactionMap() const;
+
+      ///\brief Print all particle groups.
+      void PrintGroups() const;
+
+      ///\brief Print creation function registry.
+      void PrintCreationRegistry() const;
+
+      ///\brief Print column aliases.
+      void PrintAliases() const;
+
+      ///\brief Print comprehensive diagnostics.
+      void PrintDiagnostics() const;
+
     private:
       ConfigReaction* _reaction = nullptr;
       std::string _prefix; 
@@ -435,6 +452,8 @@ namespace rad {
       }
     }
 } // end rad
+
+#include "Diagnostics_ParticleCreator.hxx"
 
 // /**
 //  * @file ParticleCreator.h

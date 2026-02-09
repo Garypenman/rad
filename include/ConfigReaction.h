@@ -152,6 +152,20 @@ namespace rad {
       void BookLazySnapshot(const std::string& filename) override;
       void RemoveSnapshotColumns(ROOT::RVec<std::string>& cols) override;
 
+      //////////////////////
+      ///Diagnostics
+      ///\brief Print particle candidates for a given type.
+      void PrintParticleCandidates(const std::string& type) const;
+
+      ///\brief Print combinatoric structure.
+      void PrintCombinatoricStructure() const;
+
+      ///\brief Print all registered types.
+      void PrintTypes() const;
+
+      ///\brief Print comprehensive reaction diagnostics.
+      void PrintReactionDiagnostics() const;
+
     protected:
       bool _useBeamsFromMC = false; 
       const std::string& GetDefaultType() const;
@@ -437,3 +451,5 @@ namespace rad {
     inline ROOT::RVec<std::string> ConfigReaction::GetTypes() const { return _types; }
 
 } // namespace rad
+
+#include "Diagnostics_ConfigReaction.hxx"

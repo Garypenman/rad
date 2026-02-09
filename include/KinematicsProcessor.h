@@ -188,7 +188,22 @@ namespace rad {
     void ParticleEta(const ParticleNames_t& particles);
     
     void PrintReactionMap() const;
- 
+
+
+    //////////////////////
+    ///Diagnostics
+    ///\brief Print registered calculations.
+    void PrintCalculations() const;
+
+    ///\brief Print registered output variables.
+    void PrintRegisteredVariables() const;
+
+    ///\brief Print group overrides.
+    void PrintGroupOverrides() const;
+
+    ///\brief Print comprehensive processor diagnostics.
+    void PrintProcessorDiagnostics() const;
+
   private:
     ConfigReaction* _reaction = nullptr;
     std::string _prefix; 
@@ -520,3 +535,4 @@ namespace rad {
   }
 
 } // namespace rad
+#include "Diagnostics_KinematicProcessor.hxx"
