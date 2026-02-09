@@ -117,7 +117,6 @@ namespace rad {
       
       template<typename Lambda>
       void SetParticleCandidates(const std::string& name, int truthRole, Lambda&& func, const ROOT::RDF::ColumnNames_t& columns) {//use default type and mcmatch
-	cout<< "SetParticleCandidates "<< name<<endl;
 	SetParticleTruthMatch(name,truthRole, GetDefaultType(),func, columns);
       }
       
@@ -213,7 +212,6 @@ namespace rad {
     // Lambda now iterates over the RVecI (pIndices) which represents the combinations
     inline void ConfigReaction::DefineTrueMatchedCombi(const std::string& matchIdCol, const std::string& type) {
         std::string logic = "";
-	cout<<"ConfigReaction::DefineTrueMatchedCombi  "<<type<<endl;
 	
         for (auto const& match : _truthMatchRegistry.GetParticleMatches()) {
             const std::string& name = match.first; 
@@ -294,8 +292,7 @@ namespace rad {
       if (_types.empty()) throw std::runtime_error("MakeCombinations: No types registered via AddType.");
       _isCombinatorialMode = true;
 
-      cout<<"ConfigReaction::MakeCombinations "<<_types.size()<<endl;
-      for (const auto& type : _types) {
+       for (const auto& type : _types) {
           ROOT::RDF::ColumnNames_t candidateCols;
           ROOT::RVec<std::string> rawNames; 
 
@@ -316,7 +313,6 @@ namespace rad {
               }
           }
 
-	  cout<<"ConfigReaction::MakeCombinations "<<candidateCols.size()<<endl;
           if (candidateCols.empty()) continue; 
 
           std::string comboColName = type + consts::ReactionCombos();

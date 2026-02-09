@@ -239,7 +239,6 @@ namespace rad {
     if (_isInitialized) return; 
     _isInitialized = true;
 
-    cout<< "KinematicsProcessor::Init() "<<_prefix<<endl;
     _reaction->ValidateType(_prefix);
     // Clear the registry to ensure no stale/duplicate entries from config phase
     _registered_vars.clear();
@@ -254,11 +253,9 @@ namespace rad {
     // IMPORTANT: This internally calls this->DefineNewComponentVecs() !
     DefineKinematicsProcessor(*_reaction, *this, _prefix);
 
-    // Note: Do NOT call DefineNewComponentVecs() here, or it runs twice.
-    cout<< "KinematicsProcessor::Init() calcs "<< _calculations.size()<<endl;
-     for(auto& calc : _calculations) {
-         calc.Define(this); 
-     }
+    for(auto& calc : _calculations) {
+      calc.Define(this); 
+    }
   }
 
   inline void KinematicsProcessor::ApplyGroupOverrides() {
@@ -432,30 +429,13 @@ namespace rad {
       auto apply_func = [func](const RVecIndexMap& map, const ROOT::RVec<ROOT::RVec<RVecResultType>>& comps){
         return rad::util::ApplyKinematics(func, map, comps);
       };
-      cout<<"KinematicsProcessor::DefineKernel " << FullName(name)<<endl; // Commented out for cleanliness
       _reaction->Define(FullName(name), apply_func, cols);
       
       // calculated variables should be registered!
       _registered_vars.push_back(name);
   }
 
-  // inline void KinematicsProcessor::Define(const std::string& name, const std::string& func, const ROOT::RVec<ParticleNames_t>& particles) {
-  //   //    cout <<"KinematicsProcessor::Define "<<endl;
-  //   std::string kine_parts = "{";
-  //   for(const auto& pnames : particles){
-  //     ParticleNames_t suffixed_names;
-  //     for(const auto& p : pnames) suffixed_names.push_back(p + _suffix);
-  //     kine_parts += util::combineVectorToString(util::prependToAll(suffixed_names, consts::data_type::Kine()));
-  //     kine_parts += ",";
-  //   }
-  //   kine_parts.pop_back(); kine_parts += "}";
-  //   cout <<"KinematicsProcessor::Define "<< util::createFunctionCallStringFromVec("rad::util::ApplyKinematics", 
-  // 										  {func, kine_parts, (_prefix + consts::KineComponents() + _suffix)})<<endl;
-  //   _reaction->Define(FullName(name), util::createFunctionCallStringFromVec("rad::util::ApplyKinematics", 
-  //                                      {func, kine_parts, (_prefix + consts::KineComponents() + _suffix)}));
-  //   _registered_vars.push_back(name);
-  // }
-
+ 
   // --- Shortcuts ---
   inline void KinematicsProcessor::Mass(const std::string& name, const ParticleNames_t& particles_pos, const ParticleNames_t particles_neg) {
     RegisterCalc(name, rad::FourVectorMassCalc<rad::RVecResultType, rad::RVecResultType>, {particles_pos, particles_neg});
@@ -472,7 +452,6 @@ namespace rad {
     //a single entry each time.
     //rad::ThreeVectorTheta has an overwite which only uses the
     //first entry of the first entry in the given RVecIndices list
-    cout<<"KinematicsProcessor::ParticleTheta "<<particles<<endl;
     for(const auto& p: particles){
       RegisterCalc(p+"_theta", rad::ThreeVectorTheta, {{p}});
     }
@@ -508,8 +487,7 @@ namespace rad {
   // =================================================================================
   
   inline void KineCalculation::Define(KinematicsProcessor* processor) {
-     cout<<"KineCalculation::Define "<<_name<<" "<<endl; // Commented out
-      if (_kern_type == KernelType::Map) {
+    if (_kern_type == KernelType::Map) {
           processor->DefineKernel(_name, _mapFunc);
       } 
       else if (_kern_type == KernelType::Index) {
