@@ -188,12 +188,17 @@ namespace rad {
         
         _cutNames.clear();
         _finalMask = _proc.GetPrefix() + "Analysis_Mask" + _proc.GetSuffix();
+ std::cout << "[PhysicsSelection] Initializing Cuts for Stream: " 
+                  << _proc.GetPrefix() << "..." << _proc.GetSuffix() 
+                  << " (" << _config.size() << " cuts configured)" << std::endl;
 
         // 1. Define individual cut columns
         for(const auto& def : _config) {
             std::string col = _proc.FullName(def.varBaseName);
             std::string cutName = _proc.GetPrefix() + def.name + _proc.GetSuffix();
-            
+            // DIAGNOSTIC: Print what we are defining
+            std::cout << "  -> Defining Cut: " << cutName << " on Variable: " << col << std::endl;
+
             double min = def.min;
             double max = def.max;
 
@@ -257,7 +262,18 @@ namespace rad {
                 ss << _cutNames[i];
                 if(i != _cutNames.size() - 1) ss << " && ";
             }
-           _proc.Reaction()->Define(_finalMask, ss.str());
+	   
+	   // Define a Temporary Boolean Name (The 0/1 result of cuts)
+	   std::string boolMaskName = _proc.GetPrefix() + "Analysis_Bool" + _proc.GetSuffix();
+          _proc.Reaction()->Define(boolMaskName, ss.str());
+	   // B. Convert Boolean -> Indices
+	   // Nonzero({1, 0, 1}) -> {0, 2}
+	   _proc.Reaction()->Define(_finalMask, 
+				    [](const Indices_t& bools) {
+				      return ROOT::VecOps::Nonzero(bools);
+				    }, 
+				    {boolMaskName}
+				    );
         }
     }
 

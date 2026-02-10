@@ -15,51 +15,76 @@ namespace rad {
   // =========================================================================
     // Shared Column Type Enum
     // =========================================================================
-    enum class ColType { Undef, Int, UInt, Float, Double, Short, Bool, Long };
-
-   
-    /**
-     * @brief Helper to deduce simple enum types from RDataFrame type strings.
-     */
-    template<typename T>
-      inline ColType DeduceColumnVectorType(T* const radf, const string& name) {
-        TString col_type = radf->ColObjTypeString(name);
-        
-        if (col_type.Contains("UInt_t")  || col_type.Contains("uint"))   return ColType::UInt;
-        if (col_type.Contains("Float_t") || col_type.Contains("float"))  return ColType::Float;
-        if (col_type.Contains("Double_t")|| col_type.Contains("double")) return ColType::Double;
-        if (col_type.Contains("Short_t") || col_type.Contains("short"))  return ColType::Short;
-        if (col_type.Contains("Bool_t")  || col_type.Contains("bool"))   return ColType::Bool;
-        if (col_type.Contains("Long_t")  || col_type.Contains("long"))   return ColType::Long;
-        if (col_type.Contains("Int_t")   || col_type.Contains("int"))    return ColType::Int;
-
-        throw std::runtime_error(std::string("RDFInterface : DeduceColumnVectorType cannot deduce a type for ") + 
-                                 name + " which is " + col_type.Data()); 
-        return ColType::Undef;
-    }
-
-    // =========================================================================
-    // Type Deduction Helper
-    // =========================================================================
-    /**
+  /**
+   * @enum ColType
+   * @brief internal enum to manage type casting for SnapshotCombi and Tree writing.
+   */
+  enum class ColType { 
+    Undef, 
+    Int,      // int, Int_t
+    UInt,     // unsigned int, UInt_t
+    Float,    // float, Float_t
+    Double,   // double, Double_t
+    Short,    // short, Short_t, char, UChar_t (mapped to smallest bucket)
+    Bool,     // bool, Bool_t
+    Long,     // long, Long_t
+    Long64    // long long, Long64_t, ULong64_t
+  };
+      /**
      * @brief deduced simple enum types from RDataFrame type strings.
      * @param col_type The type string returned by RDF (e.g. "vector<double>", "Int_t")
+     * @details Order matters! Specific types (Long64, UInt) are checked before generic ones (Long, Int).
      */
     inline ColType DeduceTypeFromString(const std::string& typeStr) {
         // Use TString for easy case-insensitive checks if needed, or string find
         TString col_type = typeStr.c_str(); // Adapter to existing logic
-        
-        if (col_type.Contains("UInt_t")  || col_type.Contains("uint"))   return ColType::UInt;
-        if (col_type.Contains("Float_t") || col_type.Contains("float"))  return ColType::Float;
-        if (col_type.Contains("Double_t")|| col_type.Contains("double")) return ColType::Double;
-        if (col_type.Contains("Short_t") || col_type.Contains("short"))  return ColType::Short;
-        if (col_type.Contains("Bool_t")  || col_type.Contains("bool"))   return ColType::Bool;
-        if (col_type.Contains("Long_t")  || col_type.Contains("long"))   return ColType::Long;
-        if (col_type.Contains("Int_t")   || col_type.Contains("int"))    return ColType::Int;
 
+	// 1. Floating Point (High Priority)
+        if (col_type.Contains("Double", TString::kIgnoreCase)) return ColType::Double;
+        if (col_type.Contains("Float",  TString::kIgnoreCase)) return ColType::Float;
+
+        // 2. 64-bit Integers (Check BEFORE "Long" or "Int")
+        // Matches "Long64_t", "long long", "ULong64_t"
+        if (col_type.Contains("Long64",    TString::kIgnoreCase) || 
+            col_type.Contains("long long", TString::kIgnoreCase)) return ColType::Long64;
+
+        // 3. Long Integers (Check AFTER "Long64")
+        if (col_type.Contains("Long", TString::kIgnoreCase)) return ColType::Long;
+
+        // 4. Unsigned Integers (Check BEFORE "Int")
+        // Matches "UInt_t", "unsigned int", "unsigned"
+        if (col_type.Contains("UInt",         TString::kIgnoreCase) || 
+            col_type.Contains("unsigned int", TString::kIgnoreCase)) return ColType::UInt;
+
+        // 5. Standard Integers (Check AFTER "UInt")
+        if (col_type.Contains("Int", TString::kIgnoreCase)) return ColType::Int;
+
+        // 6. Shorts (Matches "Short_t", "short", "unsigned short")
+        // We map both signed and unsigned short to Short to preserve 16-bit size.
+        if (col_type.Contains("Short", TString::kIgnoreCase)) return ColType::Short;
+
+        // 7. Booleans
+        if (col_type.Contains("Bool", TString::kIgnoreCase)) return ColType::Bool;
+
+   
         throw std::runtime_error("RDFUtils: Cannot deduce a type for " + typeStr); 
         return ColType::Undef;
     }
+  /**
+   * @brief Helper to deduce simple enum types from RDataFrame type strings.
+   */
+  template<typename T>
+  inline ColType DeduceColumnVectorType(T* const radf, const string& name) {
+    // Get the type string (e.g., "std::vector<float>", "ROOT::VecOps::RVec<Long64_t>")
+    std::string col_type = radf->ColObjTypeString(name);
+    return DeduceTypeFromString(col_type);
+        
+  }
+
+    // =========================================================================
+    // Type Deduction Helper
+    // =========================================================================
+
 
   void PrintDefinedColumnNames(RNode  df){
     std::cout<<"Print Column Names : ";

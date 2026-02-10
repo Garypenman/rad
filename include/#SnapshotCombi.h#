@@ -181,7 +181,8 @@ namespace io {
                 file->Write();
                 file->Close();
             }
-        }
+        }   ROOT::EnableImplicitMT(8);
+
         
         *_totalCount = std::accumulate(_slotCounts.begin(), _slotCounts.end(), 0ul);
         std::cout << "[SnapshotCombi] Total Entries: " << *_totalCount << std::endl;

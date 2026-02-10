@@ -20,7 +20,7 @@
 #include "Histogrammer.h"
 #include "CommonDefines.h"
 #include "Indicing.h"
-#include "Diagnostics.h" // Added for DiagnosticsPrinter
+#include "Diagnostics.h"
 
 #include <memory>
 #include <vector>
@@ -63,36 +63,53 @@ namespace rad {
     /** @brief Sets and creates the output directory. */
     void SetOutputDir(const std::string& dir);
 
+    // =====================================================================
+    // Stream Management
+    // =====================================================================
+
     /**
-     * @brief Define which data types to process.
-     * @details The **First** type provided is treated as the **Primary Stream**.
-     * The Primary Stream determines the Event Selection Mask for the Snapshot.
+     * @brief Adds a specific analysis stream.
+     * @details 
+     * - Example: AddStream("rec", "loose") -> Creates stream "rec_loose".
+     * - Variables will be named "rec_Mass_loose".
+     * - Input data will be read from "rec_" columns.
+     * @param dataSource The data prefix to read (e.g. "rec", "tru").
+     * @param label Analysis label (e.g. "loose", "tight", "sysUp"). Leave empty for default.
+     */
+    void AddStream(const std::string& dataSource, const std::string& label = "");
+
+    /**
+     * @brief Shortcut to add standard default streams (label="").
+     * @details SetTypes("rec", "tru") creates streams named "rec" and "tru".
      * @param types Variadic list of stream prefixes (e.g. Rec(), Truth()).
      */
     template<typename... Args>
-    void SetTypes(Args... types);
+    void SetTypes(const std::string& name,Args... types);
 
     /** @return Reference to the underlying Reaction object. */
     ReactionClass& Reaction();
 
     // =====================================================================
-    // Configuration
+    // Configuration (Pattern Matching Enabled)
     // =====================================================================
 
     /** @brief Apply a Kinematics recipe to ALL active streams. */
     void ConfigureKinematics(KineRecipe recipe);
-    /** @brief Apply a Kinematics recipe to a SPECIFIC stream only. */
-    void ConfigureKinematics(const std::string& streamName, KineRecipe recipe);
+    /** * @brief Apply a Kinematics recipe to streams matching the pattern. 
+     * @param pattern Can match the Full Name ("rec_loose"), the Source ("rec"), or the Label ("loose").
+     * Exact matches only (e.g. "loose" will NOT match "loose2").
+     */
+    void ConfigureKinematics(const std::string& pattern, KineRecipe recipe);
 
     /** @brief Apply a Selection recipe to ALL active streams. */
     void ConfigureSelection(SelRecipe recipe);
-    /** @brief Apply a Selection recipe to a SPECIFIC stream only. */
-    void ConfigureSelection(const std::string& streamName, SelRecipe recipe);
+    /** @brief Apply a Selection recipe to streams matching the pattern. */
+    void ConfigureSelection(const std::string& pattern, SelRecipe recipe);
 
     /** @brief Apply a Histogram recipe to ALL active streams. */
     void ConfigureHistograms(HistoRecipe recipe);
-    /** @brief Apply a Histogram recipe to a SPECIFIC stream only. */
-    void ConfigureHistograms(const std::string& streamName, HistoRecipe recipe);
+    /** @brief Apply a Histogram recipe to streams matching the pattern. */
+    void ConfigureHistograms(const std::string& pattern, HistoRecipe recipe);
 
     // =====================================================================
     // Execution
@@ -108,23 +125,24 @@ namespace rad {
     void Init();
 
     /**
-     * @brief Snapshots data to a SINGLE flat TTree.
+     * @brief Snapshots data to separate flat TTrees (One per Stream).
      * @details 
-     * - Merges columns from all streams (Rec + Truth).
-     * - Uses the Primary Stream's mask to filter events.
-     * - Uses the Primary Stream's combination index for alignment.
-     * - Filename defaults to: {OutputDir}/{AnalysisName}_Tree.root
-     * @param addCols Additional columns to save manually.
-     * @param filename Optional override for the output filename.
+     * - Iterates over ALL active streams.
+     * - Creates file: {OutputDir}/{AnalysisName}_{StreamName}_Tree.root
+     * - Uses that specific stream's Mask and Variables.
+     * - This ensures 'loose' and 'tight' streams are stored safely with correct event counts.
+     * @param addCols Additional columns to save (e.g. Truth Scalars) in ALL trees.
+     * @param filenameBase Optional override for base filename (e.g. "MyOutput.root" -> "MyOutput_rec_0.root").
      */
-    void Snapshot(const ROOT::RDF::ColumnNames_t& addCols={}, const std::string& filename = "");
 
+    void Snapshot(const ROOT::RDF::ColumnNames_t& addCols={}, const std::string& filename = "");
+  
     /**
      * @brief Runs the analysis and writes histograms.
      * @details 
      * - Creates ONE file PER stream to avoid key clashes.
      * - Filename: {OutputDir}/{AnalysisName}_{Prefix}_{Suffix}
-     * - Example:  output/Y4260_rec_Hist.root
+     * - Example:  output/Y4260_rec_loose_Hist.root
      * @param suffix Suffix for the histogram file (default "Hist.root").
      */
     void Run(const std::string& suffix = "Hist.root");
@@ -138,18 +156,37 @@ namespace rad {
   private:
     /**
      * @struct AnalysisStream
-     * @brief Holds the components for a single data stream (e.g., "rec_" or "tru_").
+     * @brief Holds the components for a single analysis pipeline.
      */
     struct AnalysisStream {
-        std::string prefix;
+        std::string fullName;   // Unique ID (e.g. "rec_loose")
+        std::string source;     // Data Source (e.g. "rec")
+        std::string label;      // Variation Label (e.g. "loose")
+        
         std::unique_ptr<ProcessorClass> kine;
         std::unique_ptr<PhysicsSelection> sel;
         std::unique_ptr<histo::Histogrammer> hist;
 
-        AnalysisStream(ReactionClass* reaction, const std::string& p) 
-            : prefix(p) 
+        AnalysisStream(ReactionClass* reaction, const std::string& src, const std::string& lbl) 
+            : source(src), label(lbl) 
         {
-            kine = std::make_unique<ProcessorClass>(reaction, prefix);
+            // Logic: 
+            // 1. FullName = "rec" + "_" + "loose" (if label exists)
+            // 2. InputPrefix = "rec_" (Must have underscore to find data)
+            // 3. OutputSuffix = "_loose" (If label exists)
+            
+            fullName = src;
+            std::string outputSuffix = "";
+            if(!lbl.empty()) {
+                fullName +=  lbl;
+                outputSuffix = "_" + lbl;
+            }
+            
+            // Ensure input prefix ends in "_" (e.g. "rec" -> "rec_")
+            std::string inputPrefix = src;
+            if(inputPrefix.back() != '_') inputPrefix += "_";
+
+            kine = std::make_unique<ProcessorClass>(reaction, inputPrefix, outputSuffix);
             sel  = std::make_unique<PhysicsSelection>(*kine);
             hist = std::make_unique<histo::Histogrammer>(*kine, sel.get());
         }
@@ -162,8 +199,9 @@ namespace rad {
     std::string _primaryStream;
     std::map<std::string, AnalysisStream> _streams;
 
-    void AddStream(const std::string& prefix);
-    bool CheckStream(const std::string& name);
+    // Helper to check if a stream matches a pattern (Exact matching on Source, Label, or FullName)
+    bool StreamMatches(const AnalysisStream& stream, const std::string& pattern);
+    
     std::string MakePath(const std::string& filename);
     ROOT::RDF::ColumnNames_t CollectStreamColumns(const ProcessorClass& kine);
   };
@@ -184,10 +222,30 @@ namespace rad {
       }
   }
 
+  // --- Stream Management ---
+
+  template <typename R, typename P>
+  inline void AnalysisManager<R,P>::AddStream(const std::string& dataSource, const std::string& label) {
+      // Logic handled in struct constructor, just construct key here
+      std::string key = dataSource;
+      if(!label.empty()) key += "_" + label;
+
+      if(_streams.find(key) != _streams.end()) {
+          std::cerr << "AnalysisManager Warning: Stream '" << key << "' already exists." << std::endl;
+          return;
+      }
+
+      _streams.try_emplace(key, &_reaction, dataSource, label);
+
+      // First added stream becomes default Primary
+      if(_primaryStream.empty()) _primaryStream = key;
+  }
+
   template <typename R, typename P>
   template<typename... Args>
-  inline void AnalysisManager<R,P>::SetTypes(Args... types) {
-      (AddStream(types), ...);
+  inline void AnalysisManager<R,P>::SetTypes(const std::string& name,Args... types) {
+      // Just add basic streams with empty labels
+      (AddStream(types, name), ...);
   }
 
   template <typename R, typename P>
@@ -196,13 +254,29 @@ namespace rad {
   // --- Configuration ---
 
   template <typename R, typename P>
+  inline bool AnalysisManager<R,P>::StreamMatches(const AnalysisStream& stream, const std::string& pattern) {
+      // Exact Match Logic prevents "loose" from matching "loose2"
+      if(pattern == stream.fullName) return true; // Matches "rec_loose"
+      if(pattern == stream.source)   return true; // Matches "rec"
+      if(pattern == stream.label)    return true; // Matches "loose"
+      return false;
+  }
+
+  template <typename R, typename P>
   inline void AnalysisManager<R,P>::ConfigureKinematics(KineRecipe recipe) {
       for(auto& [key, stream] : _streams) { if(stream.kine) recipe(*stream.kine); }
   }
 
   template <typename R, typename P>
-  inline void AnalysisManager<R,P>::ConfigureKinematics(const std::string& streamName, KineRecipe recipe) {
-      if(CheckStream(streamName)) recipe(*_streams.at(streamName).kine);
+  inline void AnalysisManager<R,P>::ConfigureKinematics(const std::string& pattern, KineRecipe recipe) {
+      bool found = false;
+      for(auto& [key, stream] : _streams) {
+          if(StreamMatches(stream, pattern) && stream.kine) {
+              recipe(*stream.kine);
+              found = true;
+          }
+      }
+      if(!found) std::cerr << "AnalysisManager Warning: No streams matched pattern '" << pattern << "'" << std::endl;
   }
 
   template <typename R, typename P>
@@ -211,8 +285,15 @@ namespace rad {
   }
 
   template <typename R, typename P>
-  inline void AnalysisManager<R,P>::ConfigureSelection(const std::string& streamName, SelRecipe recipe) {
-      if(CheckStream(streamName)) recipe(*_streams.at(streamName).sel);
+  inline void AnalysisManager<R,P>::ConfigureSelection(const std::string& pattern, SelRecipe recipe) {
+      bool found = false;
+      for(auto& [key, stream] : _streams) {
+          if(StreamMatches(stream, pattern) && stream.sel) {
+              recipe(*stream.sel);
+              found = true;
+          }
+      }
+      if(!found) std::cerr << "AnalysisManager Warning: No streams matched pattern '" << pattern << "'" << std::endl;
   }
 
   template <typename R, typename P>
@@ -221,8 +302,15 @@ namespace rad {
   }
 
   template <typename R, typename P>
-  inline void AnalysisManager<R,P>::ConfigureHistograms(const std::string& streamName, HistoRecipe recipe) {
-      if(CheckStream(streamName)) recipe(*_streams.at(streamName).hist);
+  inline void AnalysisManager<R,P>::ConfigureHistograms(const std::string& pattern, HistoRecipe recipe) {
+      bool found = false;
+      for(auto& [key, stream] : _streams) {
+          if(StreamMatches(stream, pattern) && stream.hist) {
+              recipe(*stream.hist);
+              found = true;
+          }
+      }
+      if(!found) std::cerr << "AnalysisManager Warning: No streams matched pattern '" << pattern << "'" << std::endl;
   }
 
   // --- Execution ---
@@ -230,12 +318,12 @@ namespace rad {
   template <typename R, typename P>
   inline void AnalysisManager<R,P>::Init() {
       if(_initialized) return;
-      if(_primaryStream.empty()) throw std::runtime_error("[AnalysisManager] No streams defined! Call SetTypes().");
+      if(_primaryStream.empty()) throw std::runtime_error("[AnalysisManager] No streams defined! Call SetTypes() or AddStream().");
 
       // PASS 1: Initialize Kinematics (Create Variables)
       for(auto& [key, stream] : _streams) {
           stream.kine->Init();
-      }
+       }
 
       // PASS 2: Compile Selections (Create Masks)
       for(auto& [key, stream] : _streams) {
@@ -250,50 +338,83 @@ namespace rad {
       _initialized = true;
   }
 
+ 
   template <typename R, typename P>
-  inline void AnalysisManager<R,P>::Snapshot(const ROOT::RDF::ColumnNames_t& addCols, const std::string& filename) {
+  void AnalysisManager<R,P>::Snapshot(const ROOT::RDF::ColumnNames_t& addCols, const std::string& filenameBase) {
+    
+    using namespace rad::consts::data_type;//for Rec() Truth()
+    
       Init();
       
-      std::string finalName = filename.empty() ? _name + "_Tree.root" : filename;
-      std::string finalPath = MakePath(finalName);
-
-      auto cols = addCols;
-      
-      // 1. Collect Primary Stream (Rec)
-      if(_streams.count(_primaryStream)) {
-          auto c = CollectStreamColumns(*_streams.at(_primaryStream).kine);
-          cols.insert(cols.end(), c.begin(), c.end());
-      }
-
-      // 2. Collect Secondary Streams (Truth)
+      // 1. Pre-collect Truth Columns (if any)
+      // We want to add these to ALL "Rec" trees (e.g. Q2_true, x_true)
+      ROOT::RDF::ColumnNames_t globalTruthCols;
       for(auto& [key, stream] : _streams) {
-          if(key == _primaryStream) continue; 
-          auto c = CollectStreamColumns(*stream.kine);
-          cols.insert(cols.end(), c.begin(), c.end());
+          // Heuristic: If source starts with "tru", it's a truth stream
+	if(stream.source.find(Truth()) == 0) {
+              auto tCols = CollectStreamColumns(*stream.kine);
+              globalTruthCols.insert(globalTruthCols.end(), tCols.begin(), tCols.end());
+          }
       }
 
-      // 3. Determine Mask (Primary Driven)
-      std::string mask = "";
-      auto& prime = _streams.at(_primaryStream);
-      mask = prime.sel->GetMaskColumn();
-      
-      // Fallback: If no mask is defined (no cuts), create a "Pass All" mask
-      if(mask.empty()) {
-           auto pNames = prime.kine->Creator().GetParticleNames();
-           if(!pNames.empty()) {
-               mask = prime.prefix + "Analysis_AllIndices";
-               // We need a reference column to know how many combinations exist (size)
-               std::string ref = prime.prefix + pNames[0] + "_px";
-               _reaction.Define(mask, [](const ROOT::RVecD& r){ 
-                  return rad::util::EnumerateIndicesFrom(0, r.size()); 
-               }, {ref});
-           }
-      }
+      // 2. Loop over ALL streams and book a separate tree for each
+      for(auto& [key, stream] : _streams) {
+          
+          // Construct Unique Filename
+          std::string specificFile;
+          if(filenameBase.empty()) {
+              specificFile = _name + "_" + stream.fullName + "_Tree.root";
+          } else {
+               auto dotPos = filenameBase.find_last_of(".");
+               if(dotPos != std::string::npos) {
+                   std::string base = filenameBase.substr(0, dotPos);
+                   std::string ext  = filenameBase.substr(dotPos);
+                   specificFile = base + "_" + stream.fullName + ext;
+               } else {
+                   specificFile = filenameBase + "_" + stream.fullName + ".root";
+               }
+          }
+          std::string finalPath = MakePath(specificFile);
 
-      std::cout << "[AnalysisManager] Snapshotting combined tree to " << finalPath << std::endl;
-      _reaction.BookSnapshotCombi(finalPath, "tree", cols, mask);
+          // Collect Columns for THIS stream
+          auto cols = addCols;
+
+	  // Always add the Event Counter
+          cols.push_back("rdfentry_");
+
+          auto streamCols = CollectStreamColumns(*stream.kine);
+          cols.insert(cols.end(), streamCols.begin(), streamCols.end());
+
+          // [FIX] If this is a Reconstruction stream, include the Truth columns too!
+          // This ensures Rec trees have the "repeated truth values" you requested.
+          if(stream.source.find(Rec()) == 0) {
+              cols.insert(cols.end(), globalTruthCols.begin(), globalTruthCols.end());
+          }
+
+          // Determine Mask for THIS stream
+          std::string mask = stream.sel->GetMaskColumn();
+          
+          // Fallback: If no cuts defined, create a "Pass All" mask
+          if(mask.empty()) {
+               auto pNames = stream.kine->Creator().GetParticleNames();
+               if(!pNames.empty()) {
+                   mask = stream.kine->GetPrefix() + "Analysis_AllIndices" + stream.kine->GetSuffix();
+                   std::string ref = stream.kine->FullName(pNames[0] + "_"+ consts::NamePx());
+                   if(!_reaction.ColumnExists(mask)) {
+                       _reaction.Define(mask, [](const ROOT::RVecD& r){ 
+                           return rad::util::EnumerateIndicesFrom(0, r.size()); 
+                       }, {ref});
+                   }
+               }
+          }
+
+          std::cout << "[AnalysisManager] Snapshotting stream '" << stream.fullName 
+                    << "' to " << finalPath << " (with Mask: " << mask << ")" << std::endl;
+          
+          _reaction.BookSnapshotCombi(finalPath, "tree", cols, mask);
+      }
   }
-
+  
   template <typename R, typename P>
   inline void AnalysisManager<R,P>::Run(const std::string& suffix) {
       Init();
@@ -302,11 +423,11 @@ namespace rad {
       
       if(!_streams.empty()) {
           for(auto& [key, stream] : _streams) {
-              std::string fname = _name + "_" + stream.prefix + suffix;
+              std::string fname = _name + "_" + stream.fullName + suffix;
               std::string finalPath = MakePath(fname);
               
               stream.hist->File(finalPath, "RECREATE");
-              std::cout << "[AnalysisManager] Wrote " << stream.prefix << " histograms to " << finalPath << std::endl;
+              std::cout << "[AnalysisManager] Wrote " << stream.fullName << " histograms to " << finalPath << std::endl;
           }
       }
   }
@@ -314,44 +435,16 @@ namespace rad {
   template <typename R, typename P>
   inline void AnalysisManager<R,P>::PrintDiagnostics() const {
     diag::DiagnosticsPrinter::PrintSectionHeader("ANALYSIS MANAGER DIAGNOSTICS", '=', 90);
-
-    // Call PrintReactionDiagnostics on the Reaction object
-    // Note: This assumes ReactionClass has this method.
-    // If _reaction is const in this context, the method must be const.
-    // We cast away constness if needed, but ideally PrintReactionDiagnostics is const.
     const_cast<R&>(_reaction).PrintReactionDiagnostics();
-
     diag::DiagnosticsPrinter::PrintBlank();
     std::cout << "Registered Streams: " << _streams.size() << std::endl;
-
     for (const auto& entry : _streams) {
-      std::cout << "\nStream: " << entry.first << std::endl;
-      
-      // FIXED: Use .kine instead of .processor
-      if(entry.second.kine) {
-         entry.second.kine->PrintProcessorDiagnostics();
-      }
+      std::cout << "\nStream: " << entry.first << " (Source: " << entry.second.source << ", Label: " << entry.second.label << ")" << std::endl;
+      if(entry.second.kine) entry.second.kine->PrintReactionMap(); // Use PrintReactionMap or PrintProcessorDiagnostics if available
     }
   }
 
   // --- Private Helpers ---
-
-  template <typename R, typename P>
-  inline void AnalysisManager<R,P>::AddStream(const std::string& prefix) {
-      if(_streams.find(prefix) == _streams.end()) {
-          _streams.try_emplace(prefix, &_reaction, prefix);
-          if(_primaryStream.empty()) _primaryStream = prefix; 
-      }
-  }
-
-  template <typename R, typename P>
-  inline bool AnalysisManager<R,P>::CheckStream(const std::string& name) {
-      if(_streams.find(name) == _streams.end()) {
-          std::cerr << "AnalysisManager Warning: Stream '" << name << "' not found. Recipe ignored." << std::endl;
-          return false;
-      }
-      return true;
-  }
 
   template <typename R, typename P>
   inline std::string AnalysisManager<R,P>::MakePath(const std::string& filename) {
@@ -364,17 +457,14 @@ namespace rad {
   template <typename R, typename P>
   inline ROOT::RDF::ColumnNames_t AnalysisManager<R,P>::CollectStreamColumns(const P& kine) {
       ROOT::RDF::ColumnNames_t cols;
-      
       for(const auto& var : kine.GetDefinedNames()) {
-          cols.push_back(kine.GetPrefix() + var + kine.GetSuffix());
+          cols.push_back(kine.FullName(var));
       }
-
-      // Add Signal Flag if it exists
+      // Signal Flag uses Input Prefix (rec_) not stream suffix
       std::string sigCol = kine.GetPrefix() + rad::consts::TruthMatchedCombi();
       if(_reaction.ColumnExists(sigCol)) {
           cols.push_back(sigCol);
       }
-      
       return cols;
   }
 

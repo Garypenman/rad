@@ -26,28 +26,34 @@ namespace rad {
                                  T& processor, 
                                  const std::string& type) 
   {
-    // 1. Get Suffix (e.g., "_miss")
+    // 1. Get Suffix (e.g., "_loose")
     std::string suffix = processor.GetSuffix();
 
     // 2. Construct Column Names
-    // Main Indices and Output Name
-    auto indicesName = type + consts::KineIndices() + suffix;
+    // INPUT: Indices (Created by ParticleCreator, now SUFFIXED)
+    // e.g., "rec_Indices_loose"
+    auto indicesName = type + consts::KineIndices() + suffix; 
+    
+    // OUTPUT: Main Components (Calculated here, now SUFFIXED)
+    // e.g., "rec_Components_loose"
     auto name = type + consts::KineComponents() + suffix;
 
     // Auxiliary Data Packs (Created by processor.DefineAux)
-    auto auxPreD  = type + "aux_pre_d" + suffix+DoNotWriteTag();
-    auto auxPreI  = type + "aux_pre_i" + suffix+DoNotWriteTag();
-    auto auxPostD = type + "aux_post_d" + suffix+DoNotWriteTag();
-    auto auxPostI = type + "aux_post_i" + suffix+DoNotWriteTag();
+    auto auxPreD  = type + "aux_pre_d" + suffix + DoNotWriteTag();
+    auto auxPreI  = type + "aux_pre_i" + suffix + DoNotWriteTag();
+    auto auxPostD = type + "aux_post_d" + suffix + DoNotWriteTag();
+    auto auxPostI = type + "aux_post_i" + suffix + DoNotWriteTag();
 
     // 3. Build Argument List for RDataFrame
     // Order: [Indices, Px, Py, Pz, M, PreD, PreI, PostD, PostI]
+    // Note: Px, Py, Pz, M are INPUTS (Shared Data), so they utilize 'type' (prefix) ONLY.
     ROOT::RDF::ColumnNames_t columns = {
         indicesName, 
         type + "px", type + "py", type + "pz", type + "m",
         auxPreD, auxPreI, auxPostD, auxPostI
     };
-    // 4. Deduce Input Types (Float vs Double)
+    
+    // 4. Deduce Input Types (Float vs Double) from the shared data columns
     auto vecTypeP = DeduceColumnVectorType(&cr, type + "px");
     auto vecTypeM = DeduceColumnVectorType(&cr, type + "m");
     
@@ -72,6 +78,7 @@ namespace rad {
             columns
         );
     };
+    
     // 5. Dispatch based on detected types
     if (vecTypeP == ColType::Float && vecTypeM == ColType::Double) {
         do_define(ROOT::RVecF{}, ROOT::RVecD{});
@@ -90,6 +97,7 @@ namespace rad {
     }
 
     // 6. Optional Hook: Unpack components if needed
+    // This splits "rec_Components_loose" into "rec_ele_px_loose", etc.
     processor.DefineNewComponentVecs();
    
     return;

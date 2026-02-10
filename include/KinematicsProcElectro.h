@@ -53,8 +53,12 @@ namespace rad {
   {
       // 1. Define Topology: Create the "Scattered Electron Group" in RDF
       // We must use the specific prefix (e.g. "rec_") 
-      Reaction()->SetGroupParticles(consts::ScatGroup(), GetPrefix(), {consts::ScatEle()});
+      std::string groupCol = prefix + consts::ScatGroup();
 
+      if(Reaction()->ColumnExists(groupCol)==false) {
+          // Only define if not already present
+          Reaction()->SetGroupParticles(consts::ScatGroup(), GetPrefix(), {consts::ScatEle()});
+      }
       // 2. Register this group with the Creator
       // Creator() now knows that "scat_ele" logic relies on this RDF group.
       Creator().DefineGroup(consts::OrderScatEle(), consts::ScatGroup());

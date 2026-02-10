@@ -275,7 +275,7 @@ namespace rad {
     }
     inline void ParticleCreator::OverrideGroup(int order, const ROOT::RVec<std::string>& particles) {
           _explicit_groups[order] = particles;
-          _config_groups.erase(order);     
+          _config_groups.erase(order);      
     }
     inline void ParticleCreator::OverrideGroup(const std::string& abstractName, const ROOT::RVec<std::string>& particles) {
           if(abstractName == consts::Baryons()) OverrideGroup(consts::OrderBaryons(), particles);
@@ -313,9 +313,9 @@ namespace rad {
     inline int ParticleCreator::GetIndexSafe(const std::string& name) const {
       auto it = _nameIndex.find(name);
       if (it == _nameIndex.end()) {
-	std::cerr << "\n[ParticleCreator FATAL] Missing Particle Index: " << name << "\n";
-	std::cerr << "  Processor: " << _prefix << " (Suffix: '" << _suffix << "')\n";
-	throw std::runtime_error("Particle '" + name + "' missing in map. Check inputs.");
+    std::cerr << "\n[ParticleCreator FATAL] Missing Particle Index: " << name << "\n";
+    std::cerr << "  Processor: " << _prefix << " (Suffix: '" << _suffix << "')\n";
+    throw std::runtime_error("Particle '" + name + "' missing in map. Check inputs.");
       }
       return it->second;
     }
@@ -364,10 +364,15 @@ namespace rad {
       util::removeExistingStrings(_inputNames, _p_names); 
 
       // 2. COLLISION CHECK & MAP REGISTRATION
+      // Ensure the key column includes the suffix to allow multiple streams (rec_loose, rec_tight)
       std::string kineCol = consts::KineIndices() + _suffix;
+      
       if (_reaction->ColumnExists(_prefix + kineCol)) {
+          // This should only happen if the user creates two streams with exact same Name+Suffix
           throw std::runtime_error("Topology Collision: Processor [" + _prefix + "] suffix [" + _suffix + "] already exists.");
       }
+      
+      // Register the group particles using the suffixed column name
       _reaction->SetGroupParticles(kineCol, _prefix, utils::as_stdvector(_inputNames));
 
       // 3. BUILD INDEX MAPS
@@ -405,13 +410,17 @@ namespace rad {
 
       RVecIndexMap retIndices{idxBeam, idxBaryons, idxMesons, idxScat_ele, idxDeps, idxCreate};
       _mapIndices = retIndices;
+      
+      // Define the Reaction Map (Suffixed)
       _reaction->Define(GetMapName(), [retIndices]() { return retIndices; }, {});
 
       // DEFINE INPUT ALIASES 
       for(const auto& name : _inputNames) {
-            std::string colName = _prefix + name + _suffix;
-            std::string masterCol = _prefix + name;
+            std::string colName = _prefix + name + _suffix; // Aliased Name (e.g. rec_ele_loose)
+            std::string masterCol = _prefix + name;         // Source Name (e.g. rec_ele)
             
+            // Only define alias if suffix is non-empty AND alias doesn't already exist
+            // This prevents "rec_" vs "rec_" collision for default streams
             if(!_suffix.empty() && !_reaction->ColumnExists(colName) && _reaction->ColumnExists(masterCol)) {
                 _reaction->Define(colName, masterCol); 
             }
@@ -441,6 +450,8 @@ namespace rad {
     inline size_t ParticleCreator::GetNCreated() const { return _p_names.size(); }
     inline Indice_t ParticleCreator::GetReactionIndex(const std::string& name) const { return GetIndexSafe(name); }
     inline Indice_t ParticleCreator::GetReactionIndex(size_t input) const { return _input2ReactionIndex[input]; }
+    
+    // Ensure Map Name uses Suffix to be unique per stream
     inline std::string ParticleCreator::GetMapName() const { return _prefix + consts::ReactionMap() + _suffix + DoNotWriteTag(); }
 
     inline void ParticleCreator::ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 

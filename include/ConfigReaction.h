@@ -232,6 +232,7 @@ namespace rad {
 		  
 		  // Logic: (Is match?) AND (Was index valid?)
 		  //    RVec logic operations automatically return vectors of 1s and 0s.
+
 		  return (currentMatches == role) && valid;
     
               
@@ -337,7 +338,8 @@ namespace rad {
 
           for(size_t ip=0; ip < candidateCols.size(); ++ip) {
 	    Redefine(candidateCols[ip], [ip](const RVecIndices& part_combos){ return part_combos[ip]; }, {comboColName});
-	    
+	    //Could apply filter here that need each particle to have >0 candidates, or could do it earlier
+	    Filter([ip](const RVecIndices& part_combos){ return (part_combos[ip].empty()==false); }, {comboColName}, candidateCols[ip]+"_filt");	    
           }
       }
       //Now have defined particle indices for all types in terms of combis
