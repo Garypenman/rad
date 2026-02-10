@@ -18,7 +18,7 @@ void CombiJpsi(){
    AnalysisManager<Reaction,Processor>  mgr{
     "Jpsi_Analysis", //name
     "hepmc3_tree",  //treename
-    "jpac_jpsi_106_pomeron.root" //filename
+    "/home/dglazier/Dropbox/clas12/jpsi/jpac_jpsi_106_pomeron.root" //filename
   };
   mgr.SetOutputDir("output");
   auto& reaction = mgr.Reaction();
@@ -36,8 +36,8 @@ void CombiJpsi(){
   reaction.SetParticleIndex("p", 3);   
 
   reaction.MakeCombinations();
-  rad::PrintDefinedColumnNames(reaction.CurrFrame());
-  mgr.SetTypes(MC());
+
+  mgr.AddStream(MC());
 
   // [A] SHARED KINEMATICS (Topology)
   // Applied to both Rec and Truth streams. Defines the decay chain.
