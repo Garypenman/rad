@@ -37,6 +37,21 @@ namespace rad {
     /** @brief Calculates Q2 (Negative Squared 4-Momentum Transfer). */
     void Q2();
     
+    /** @brief Calculates xbj. */
+    void xbj();
+    
+    /** @brief Calculates y. */
+    void y();
+    
+    /** @brief Calculates nu. */
+    void nu();
+    
+    /** @brief Calculates tau. */
+    void tau();
+    
+    /** @brief Calculates tauprime. */
+    void tauprime();
+    
     /** @brief Calculates Cos(Theta) in the Center of Mass frame. */
     void CosThetaCM();
     
@@ -74,7 +89,27 @@ namespace rad {
   inline void KinematicsProcElectro::Q2() {
     RegisterCalc("Q2", rad::physics::ElS_Q2);
   }
-    
+  
+  inline void KinematicsProcElectro::xbj() {
+    RegisterCalc("xbj", rad::physics::ElS_xbj);
+  }
+  
+  inline void KinematicsProcElectro::y() {
+    RegisterCalc("y", rad::physics::ElS_y);
+  }
+  
+  inline void KinematicsProcElectro::nu() {
+    RegisterCalc("nu", rad::physics::ElS_nu);
+  }
+  
+  inline void KinematicsProcElectro::tau() {
+    RegisterCalc("tau", rad::physics::ElS_tau);
+  }
+  
+  inline void KinematicsProcElectro::tauprime() {
+    RegisterCalc("tauprime", rad::physics::ElS_tauprime);
+  }
+  
   inline void KinematicsProcElectro::CosThetaCM() {
     RegisterCalc("CosThetaCM", rad::physics::ElS_CosThetaCM);
   }

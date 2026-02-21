@@ -43,7 +43,87 @@ namespace rad {
       auto phot = PhotoFourVector(react, px, py, pz, m);
       return -phot.M2();
     }
-
+    
+    /**
+     * @brief Calculates the struck quark momentum fraction, xbj = Q^2/(2p.q).
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ResultType_t The xbj value (always positive).
+     */
+    inline ResultType_t ElS_xbj(const RVecIndexMap& react, 
+			       const RVecResultType& px, const RVecResultType& py, 
+			       const RVecResultType& pz, const RVecResultType& m) 
+    {
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
+      auto phot = PhotoFourVector(react, px, py, pz, m);
+      return -phot.M2() / (2*ion.Dot(phot));
+    }
+    
+    /**
+     * @brief Calculates the inelasticity parameter, y = p.q/p.k
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ResultType_t The y value (always positive).
+     */
+    inline ResultType_t ElS_y(const RVecIndexMap& react, 
+			       const RVecResultType& px, const RVecResultType& py, 
+			       const RVecResultType& pz, const RVecResultType& m) 
+    {
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
+      auto ebeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, m);
+      auto phot = PhotoFourVector(react, px, py, pz, m);
+      return ion.Dot(phot) / ion.Dot(ebeam);
+    }
+    
+    /**
+     * @brief Calculates the virtual photon energy (ion rest frame), nu = p.q / M
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ResultType_t The nu value (always positive).
+     */
+    inline ResultType_t ElS_nu(const RVecIndexMap& react, 
+			       const RVecResultType& px, const RVecResultType& py, 
+			       const RVecResultType& pz, const RVecResultType& m) 
+    {
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
+      auto phot = PhotoFourVector(react, px, py, pz, m);
+      return ion.Dot(phot) / ion.M();
+    }
+    
+    /**
+     * @brief Calculates the electroproduction variable, tau  = Q^2/(4M^2).
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ResultType_t The tau value (always positive).
+     */
+    inline ResultType_t ElS_tau(const RVecIndexMap& react, 
+			       const RVecResultType& px, const RVecResultType& py, 
+			       const RVecResultType& pz, const RVecResultType& m) 
+    {
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
+      auto phot = PhotoFourVector(react, px, py, pz, m);
+      //auto Q2 = -phot.M2(); //call ElS_Q2() here or just compute by hand?
+      return -phot.M2() / (4*ion.M2());
+    }
+    
+    /**
+     * @brief Calculates the  variable, tau' = Q'^2/(2p.q).
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ResultType_t The tau' value (always positive).
+     */
+    inline ResultType_t ElS_tauprime(const RVecIndexMap& react, 
+			       const RVecResultType& px, const RVecResultType& py, 
+			       const RVecResultType& pz, const RVecResultType& m) 
+    {
+      // Q^2 is defined as the negative invariant mass squared of the virtual photon.
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
+      auto phot = PhotoFourVector(react, px, py, pz, m);
+      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, m); // Assumes single particle or combined meson vector
+      return mes.M2() / (2*ion.Dot(phot));
+    }
+    
+    
     /**
      * @brief Calculates the four-momentum of the initial state Center-of-Mass (CM) system.
      * @param react The fixed ReactionMap.
@@ -104,7 +184,7 @@ namespace rad {
 
       return {theta, energy, Q2};
     }
-
+    
     /**
      * @brief Calculates the polarization parameter (epsilon) for the virtual photon.
      * @param react The fixed ReactionMap.
@@ -127,6 +207,20 @@ namespace rad {
       const auto pol = 1. / (1. + 2. * (1. + GammaE * GammaE / Q2) * TMath::Tan(ElScatTh / 2.) * TMath::Tan(ElScatTh / 2.));
 
       return pol;
+    }
+    
+    /**
+     * @brief Calculates the circular polarization parameter for the virtual photon sqrt(1-epsilon^2).
+     * @param react The fixed ReactionMap.
+     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @return ResultType_t The circular polarization parameter.
+     */
+    inline ResultType_t ElS_CircPolVirtPhot(const RVecIndexMap& react, 
+					const RVecResultType& px, const RVecResultType& py, 
+					const RVecResultType& pz, const RVecResultType& m) 
+    {
+      auto eps = ElS_PolVirtPhot(react,px,py,pz,m);
+      return sqrt(1-eps*eps);
     }
 
     // --- Decay Frame Kinematics (CM and Proton Rest) ---
