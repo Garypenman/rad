@@ -4,38 +4,14 @@
 
 namespace rad{
   namespace electro{
-  
+    
     template<typename Tp, typename Tm>
     double Q2(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
       auto phot = PhotoFourVector(react,px,py,pz,m);
       //cout << phot << endl;
       return -phot.M2();
-      
     }
     
-    template<typename Tp, typename Tm>
-    double y(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
-      auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m);
-      auto ebeam = beams::InitialFourVector(react[names::ElectroEleIdx()][0],px,py,pz,m);
-      auto phot = PhotoFourVector(react,px,py,pz,m);
-      
-      return pbeam.Dot(phot) / pbeam.Dot(ebeam);
-    }
-    
-    template<typename Tp, typename Tm>
-    double nu(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
-      auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m);
-      auto phot = PhotoFourVector(react,px,py,pz,m);
-      return pbeam.Dot(phot) / pbeam.M();
-    }
-    
-    template<typename Tp, typename Tm>
-      double xbj(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
-      auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m);
-      auto phot = PhotoFourVector(react,px,py,pz,m);
-      
-      return -phot.M2() / (2*pbeam.Dot(phot));
-    }
     template<typename Tp, typename Tm>
       double Tau(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
       auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m);
@@ -43,6 +19,7 @@ namespace rad{
       
       return -phot.M2() / (4*pbeam.M2());
     }
+    
     template<typename Tp, typename Tm>
       double TauPrime(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
       auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m);
@@ -53,32 +30,89 @@ namespace rad{
        
     template<typename Tp, typename Tm>
       RVec<double> ScatterInProtonRest(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
-      //auto angles = ElectroProtonRestDecay(react,px,py,pz,m);
+      
       auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m);
       auto ebeam = beams::InitialFourVector(react[names::ElectroEleIdx()][0],px,py,pz,m);
-      auto scatele = FourVector(react[names::ScatEleIdx()],px,py,pz,m);
+      auto escat = FourVector(react[names::ScatEleIdx()],px,py,pz,m);
       
-      auto pboost = pbeam.BoostToCM();
-      auto prbeam = boost(ebeam,pboost);
-      auto prscat = boost(scatele,pboost);
-      
-      auto prgamstar = prbeam - prscat;
-      
-      auto num = prbeam.Vect().Dot(prscat.Vect());
-      auto denom = prbeam.Vect().R() * prscat.Vect().R();
-      auto theta = acos(num/denom);
-      auto energy = prgamstar.E();
-
       //auto phot = PhotoFourVector(react,px,py,pz,m);
-      auto Q2 = -prgamstar.M2();
-      //cout << "Testing Q2 in PRF: Q2phot: " << -phot.M2() <<" Q2prgamstar: " << Q2 << endl;
-      auto nu = prbeam.E() - prscat.E();
-      auto y = nu / prbeam.E();
-      auto xbj = Q2 / (2*pbeam.M()*nu);
-      
-      return {theta,energy,Q2,y};
-    }
+      auto phot = ebeam - escat;
 
+      auto pboost = pbeam.BoostToCM();
+      auto pbeamPRF = boost(pbeam,pboost);
+      //cout << "lab pbeam: " << pbeam << " boost pbeam: " << pbeamPRF << endl;
+      
+      auto ebeamPRF = boost(ebeam,pboost);
+      auto escatPRF = boost(escat,pboost);
+      //cout << "lab ebeam: " << ebeam << " boost ebeam: " << ebeamPRF << endl;
+      
+      auto photPRF = ebeamPRF - escatPRF;
+      
+      auto num = ebeamPRF.Vect().Dot(escatPRF.Vect());
+      auto denom = ebeamPRF.Vect().R() * escatPRF.Vect().R();
+      auto theta = acos(num/denom);
+      auto energy = photPRF.E();
+
+      auto Q2 = -phot.M2();
+      auto Q2PRF = -photPRF.M2();
+      
+      auto nu = pbeam.Dot(phot) / pbeam.M();
+      auto nuPRF = ebeamPRF.E() - escatPRF.E();
+      
+      auto y = pbeam.Dot(phot) / pbeam.Dot(ebeam);
+      auto yPRF = nuPRF / ebeamPRF.E();
+      
+      auto xbj = Q2 / (2*pbeam.Dot(phot));
+      auto xbjPRF = Q2PRF / (2*pbeamPRF.M()*nuPRF);
+      
+      //diagnostic but cant work out fully why lab frame invariant
+      //calculations give wrong results!
+      /* if( Q2!=Q2PRF || nu!=nuPRF || y!=yPRF || xbj!=xbjPRF){ */
+      /* 	cout << "Frame issue with invariants?" << endl; */
+      /* 	cout << ebeam << " " << ebeamPRF << endl; */
+      /* 	cout << pbeam << " " << pbeamPRF << endl; */
+      /* 	cout << escat << " " << escatPRF << endl; */
+      /* 	cout << "Q2LAB: " << Q2 <<" Q2PRF: " << Q2PRF << endl; */
+      /* 	cout << "nuLAB: " << nu <<" nuPRF: " << nuPRF << endl; */
+      /* 	cout << "yLAB: " << y <<" yPRF: " << yPRF << endl; */
+      /* 	cout << "xbjLAB: " << xbj <<" xbjPRF: " << xbjPRF << endl; */
+      /* 	cout << endl; */
+      /* } */
+      
+      return {theta,energy,Q2PRF,yPRF,nuPRF,xbjPRF};
+    }
+    
+    template<typename Tp, typename Tm>
+    double y(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
+      /* auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m); */
+      /* auto ebeam = beams::InitialFourVector(react[names::ElectroEleIdx()][0],px,py,pz,m); */
+      /* auto phot = PhotoFourVector(react,px,py,pz,m); */
+      
+      /* return pbeam.Dot(phot) / pbeam.Dot(ebeam); */
+      auto invts = ScatterInProtonRest(react,px,py,pz,m);
+      return invts[3];
+    }
+    
+
+    template<typename Tp, typename Tm>
+      double nu(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
+      /* auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m); */
+      /* auto phot = PhotoFourVector(react,px,py,pz,m); */
+      /* return pbeam.Dot(phot) / pbeam.M(); */
+      auto invts = ScatterInProtonRest(react,px,py,pz,m);
+      return invts[4];
+    }
+    
+    template<typename Tp, typename Tm>
+      double xbj(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
+      /* auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m); */
+      /* auto phot = PhotoFourVector(react,px,py,pz,m); */
+      
+      /* return -phot.M2() / (2*pbeam.Dot(phot)); */
+      auto invts = ScatterInProtonRest(react,px,py,pz,m);
+      return invts[5];
+    }
+    
     template<typename Tp, typename Tm>
       double PolGammaStar(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
       

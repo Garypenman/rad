@@ -135,5 +135,41 @@ namespace rad{
       auto angles = PhotoGJDecay(react,px,py,pz,m);
       return angles.Phi;
     }
+     
+     template<typename Tp, typename Tm>
+       double TrentoPhi(const config::RVecIndexMap& react,const RVec<Tp> &px, const RVec<Tp> &py, const RVec<Tp> &pz, const RVec<Tm> &m){
+      
+       auto ebeam = beams::InitialFourVector(react[names::ElectroEleIdx()][0],px,py,pz,m);
+      auto escat = FourVector(react[names::ScatEleIdx()],px,py,pz,m);
+      
+      auto pbeam = beams::InitialFourVector(react[names::ElectroIonIdx()][0],px,py,pz,m);
+      auto baryon = reactkine::BaryonFourVector(react,px,py,pz,m);
+      
+      // Virtual photon q = k - k'    
+      auto q = ebeam - escat;    
+      // Boost everything to gamma*?p CM (recommended for numerical stability)
+      auto cm   = q + pbeam;
+      auto Bcm  = cm.BoostToCM();    
+      auto k_cm   = boost(ebeam,  Bcm);    
+      auto kp_cm  = boost(escat,  Bcm);    
+      auto q_cm   = boost(q,      Bcm);    
+      auto Pp_cm  = boost(baryon, Bcm);    
+      // Extract 3-vectors    
+      auto k    = k_cm.Vect();    
+      auto kp   = kp_cm.Vect();    
+      auto qv   = q_cm.Vect();    
+      auto Ppv  = Pp_cm.Vect();    
+      // Plane normals    
+      auto n_lep = (k.Cross(kp)).Unit();  
+      // lepton-scattering plane  
+      auto n_had = (qv.Cross(Ppv)).Unit();  
+      // hadron plane    
+      auto qhat  = qv.Unit();    
+      // Trento azimuthal angle    
+      double cosphi = n_lep.Dot(n_had);  
+      double sinphi = qhat.Dot(n_lep.Cross(n_had));
+      return std::atan2(sinphi, cosphi);
+     }
+     
   }
 }
