@@ -19,7 +19,8 @@ namespace rad{
     constexpr double M_K() { return 0.49367700;}
     constexpr double M_K0() { return 0.49761100;}
     constexpr double M_Jpsi() { return 3.0969000;}
-
+    constexpr double M_Lambda() { return 1.1156830;}
+    
 // --- PDG Codes ---
         constexpr int PDG_ele_beam()    { return 10000+11; }
         constexpr int PDG_pro_beam()    { return 10000+2212; }

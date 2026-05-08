@@ -246,9 +246,9 @@ namespace rad {
       auto photon = PhotoFourVector(react, px, py, pz, m);
 
       // Boost to CM frame
-      PxPyPzMVector CMBeam = boost(beam, cmBoost);
-      PxPyPzMVector CMMes = boost(mes, cmBoost);
-      PxPyPzMVector CMGamma = boost(photon, cmBoost);
+      auto CMBeam = boost(beam, cmBoost);
+      auto CMMes = boost(mes, cmBoost);
+      auto CMGamma = boost(photon, cmBoost);
 
       // Define Helicity Coordinate System (z-axis along virtual photon)
       XYZVector zV = CMGamma.Vect().Unit();
@@ -311,9 +311,9 @@ namespace rad {
       auto photon = PhotoFourVector(react, px, py, pz, m);
 
       // Boost to Proton Rest Frame
-      PxPyPzMVector prBeam = boost(beam, prBoost);
-      PxPyPzMVector prMes = boost(mes, prBoost);
-      PxPyPzMVector prGamma = boost(photon, prBoost);
+      auto prBeam = boost(beam, prBoost);
+      auto prMes = boost(mes, prBoost);
+      auto prGamma = boost(photon, prBoost);
 
       // Define Helicity Coordinate System (z-axis opposite virtual photon, for convention)
       XYZVector zV = -prGamma.Vect().Unit(); // Often defined opposite q*

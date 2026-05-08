@@ -225,7 +225,7 @@ namespace rad {
          * @details Requires the reaction map to locate the "Virtual Gamma" in the created particles list.
          */
         template<typename Tp, typename Tm>
-        inline PxPyPzMVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m);
+        inline PxPyPzEVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m);
     }
 
 
@@ -393,14 +393,36 @@ namespace rad {
 
     // --- Physics Helpers ---
 
-    namespace electroion {
-        template<typename Tp, typename Tm>
-        inline PxPyPzMVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-            // Retrieves the virtual photon from the 'Created' particle group
-            return FourVector(react[consts::OrderCreated()][consts::OrderVirtGamma()], px, py, pz, m);
-        }
-    }
+  namespace electroion {
+    // template<typename Tp, typename Tm>
+    //     inline PxPyPzEVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    //         // Retrieves the virtual photon from the 'Created' particle group
+    // 	  return FourVector(react[consts::OrderCreated()][consts::OrderVirtGamma()], px, py, pz, m);
+    // 	}
 
+    // NOTE:
+    // VirtGamma is an off-shell object.
+    // The (px,py,pz,m) entry created by ParticleCreateByDiff
+    // is bookkeeping-only and MUST NOT be used for physics.
+    // The physical virtual photon is constructed here in E-space.
+    
+    template<typename Tp, typename Tm>
+    inline PxPyPzEVector PhotoFourVector(const RVecIndexMap& react,
+					 const Tp& px, const Tp& py,
+					 const Tp& pz, const Tm& m)
+    {
+      auto ie = react[consts::OrderBeams()][consts::OrderBeamEle()];
+      auto is = react[consts::OrderScatEle()][0];
+      auto ebeam = FourVector(ie, px, py, pz, m);
+      auto escat = FourVector(is, px, py, pz, m);
+
+      ROOT::Math::PxPyPzEVector k (px[ie], py[ie], pz[ie], ebeam.E());
+      ROOT::Math::PxPyPzEVector kp(px[is], py[is], pz[is], escat.E());
+	
+      return k - kp;   // ✅ correct Lorentz subtraction
+    }
+  }
+  
 } // namespace rad
 
 //required for physics, use this computation for photo4vector
