@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ReactionKinematics.h"  // FourVector, boost, PxPyPzMVector, etc.
+#include "ReactionKinematics.h"  // FourVector, boost, LorentzVector, etc.
 #include "BasicKinematics.h"     // If InitialFourVector / helpers live here
 #include "ConfigReaction.h"      // RVecIndexMap, names:: indices
 #include "CommonDefines.h"       // Ensures RVecResultType, ResultType_t, etc.
@@ -34,9 +34,9 @@ namespace rad {
      *
      * @param react The fixed reaction index map.
      * @param px, py, pz, m The consolidated momentum component vectors.
-     * @return PxPyPzMVector The CM four-momentum vector.
+     * @return LorentzVector The CM four-momentum vector.
      */
-    inline PxPyPzMVector PhotoCMVector(const RVecIndexMap& react,
+    inline LorentzVector PhotoCMVector(const RVecIndexMap& react,
                                        const RVecResultType& px, const RVecResultType& py,
                                        const RVecResultType& pz, const RVecResultType& m)
     {
@@ -63,7 +63,7 @@ namespace rad {
       const auto cmBoost = cm.BoostToCM();
 
       auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, m); // Assumes single particle or combined meson vector
-      const PxPyPzMVector cmMes = boost(mes, cmBoost);
+      const LorentzVector cmMes = boost(mes, cmBoost);
 
       DecayAngles_t result;
       result.cosTheta = TMath::Cos(cmMes.Theta());

@@ -288,7 +288,7 @@ namespace rad {
               _forced_inputs.push_back(name);
     }
 
-    inline void ParticleCreator::AddParticle(const std::string& name, ParticleCreatorFunc_t func, const StructuredNames_t& depends) {
+  inline void ParticleCreator::AddParticle(const std::string& name, ParticleCreatorFunc_t func, const StructuredNames_t& depends) {
         _p_names.push_back(name);
         auto flat_depends = util::flattenColumnNames(depends);
         _p_required.push_back(flat_depends);

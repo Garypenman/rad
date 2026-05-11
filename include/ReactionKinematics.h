@@ -12,7 +12,7 @@ namespace rad {
      * @brief Reconstructs the total initial state 4-vector (Beam + Target).
      * Uses the specific beam indices provided.
      */
-    inline PxPyPzMVector InitialStateFourVector(const RVecIndexMap& react, 
+    inline LorentzVector InitialStateFourVector(const RVecIndexMap& react, 
 						const RVecResultType& px, const RVecResultType& py, 
 						const RVecResultType& pz, const RVecResultType& m) 
     {
@@ -73,7 +73,7 @@ namespace rad {
 
     // --- Final State Reconstruction ---
 
-    inline PxPyPzMVector CMVectorFinal(const RVecIndexMap& react, 
+    inline LorentzVector CMVectorFinal(const RVecIndexMap& react, 
 				       const RVecResultType& px, const RVecResultType& py, 
 				       const RVecResultType& pz, const RVecResultType& m) 
     {
@@ -83,14 +83,14 @@ namespace rad {
       return FourVector(icm, px, py, pz, m);
     }
 
-    inline PxPyPzMVector BaryonFourVector(const RVecIndexMap& react, 
+    inline LorentzVector BaryonFourVector(const RVecIndexMap& react, 
 					  const RVecResultType& px, const RVecResultType& py, 
 					  const RVecResultType& pz, const RVecResultType& m) 
     {
       return FourVector(react[consts::OrderBaryons()], px, py, pz, m);
     }
 
-    inline PxPyPzMVector MesonFourVector(const RVecIndexMap& react, 
+    inline LorentzVector MesonFourVector(const RVecIndexMap& react, 
 					 const RVecResultType& px, const RVecResultType& py, 
 					 const RVecResultType& pz, const RVecResultType& m) 
     {

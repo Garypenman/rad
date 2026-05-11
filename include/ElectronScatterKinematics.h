@@ -152,9 +152,9 @@ namespace rad {
      * @brief Calculates the four-momentum of the initial state Center-of-Mass (CM) system.
      * @param react The fixed ReactionMap.
      * @param px, py, pz, m The consolidated momentum component vectors.
-     * @return PxPyPzMVector The CM four-momentum vector (P_ion + P_virtual_photon).
+     * @return LorentzVector The CM four-momentum vector (P_ion + P_virtual_photon).
      */
-    inline PxPyPzMVector CMVectorInitial(const RVecIndexMap& react, 
+    inline LorentzVector CMVectorInitial(const RVecIndexMap& react, 
 					 const RVecResultType& px, const RVecResultType& py, 
 					 const RVecResultType& pz, const RVecResultType& m) 
     {

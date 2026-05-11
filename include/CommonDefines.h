@@ -10,7 +10,7 @@
 namespace rad{
 
   using ROOT::Math::PxPyPzMVector ;
-  using ROOT::Math::PxPyPzEVector ;
+  using LorentzVector = ROOT::Math::PxPyPzEVector ;
   using ROOT::Math::XYZVector ;
 
   //kinematics functions etc should return common type

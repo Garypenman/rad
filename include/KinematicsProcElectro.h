@@ -78,13 +78,10 @@ namespace rad {
       // Creator() now knows that "scat_ele" logic relies on this RDF group.
       Creator().DefineGroup(consts::OrderScatEle(), consts::ScatGroup());
 
-      // WE SHOULDNT DO THIS, OFF-SHELL PARTICLE SUBTRACTION
-      // IS INHERINTELY UNSAFE IN MASS-COORDINATE 4VECTORS
       // 3. Define the Virtual Photon: Beam Electron - Scattered Electron
       // This is a "Created" particle that exists in the combinatorial arrays.
       Creator().Diff(consts::VirtGamma(), {{consts::BeamEle()}, {consts::ScatEle()}});
-      //Creator().CreateVirtual(consts::VirtGamma(), {{consts::BeamEle()}, {consts::ScatEle()}});
-
+      
   }
   
   // inline KinematicsProcElectro::KinematicsProcElectro(const KinematicsProcElectro& other, const std::string& new_suffix)

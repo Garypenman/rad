@@ -15,7 +15,7 @@ namespace rad{
       
       auto p4 = FourVector(ipos,px,py,pz,m);
       SubtractFourVector(p4,ineg,px,py,pz,m);
-      
+
       px[position] = p4.X();
       py[position] = p4.Y();
       pz[position] = p4.Z();

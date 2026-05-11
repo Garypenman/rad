@@ -4,7 +4,7 @@
 #include "Constants.h"
 #include "CommonDefines.h"
 
-// Note: Assuming PxPyPzMVector, XYZVector, ResultType_t, RVecResultType are defined in CommonDefines.h
+// Note: Assuming LorentzVector, PxPyPzMVector, XYZVector, ResultType_t, RVecResultType are defined in CommonDefines.h
 // Note: Assuming Indices_t, RVecIndices are defined in Indicing.h or CommonDefines.h
 
 void BasicKinematics(){}
@@ -26,18 +26,25 @@ namespace rad {
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
    * @param m The RVec of mass components.
-   * @return PxPyPzMVector The four-momentum vector (Px, Py, Pz, M).
+   * @return LorentzVector The four-momentum vector (Px, Py, Pz, E).
    */
   template<typename Tp, typename Tm>
-  inline PxPyPzMVector FourVector(const uint idx, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-    return PxPyPzMVector(px[idx], py[idx], pz[idx], m[idx]);
+  inline LorentzVector FourVector(const uint idx, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    double p2 = px[idx]*px[idx] + py[idx]*py[idx] + pz[idx]*pz[idx];
+    double m_stored = m[idx];
+    // Recovers true M^2 preserving sign (handles spacelike and timelike)
+    double M2 = m_stored * std::abs(m_stored);
+    double E = std::sqrt(std::max(0.0, p2 + M2));
+
+    return LorentzVector(px[idx], py[idx], pz[idx], E);
   }
 
+  
   /**
    * @brief Adds the 4-vectors of multiple particles specified by indices to an existing 4-vector.
    * @tparam Tp Type of momentum components.
    * @tparam Tm Type of mass component.
-   * @param p4 Reference to the PxPyPzMVector to which the sum is added.
+   * @param p4 Reference to the LorentzVector to which the sum is added.
    * @param ip The Indices_t (RVecI) containing the indices of particles to sum.
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
@@ -45,10 +52,10 @@ namespace rad {
    * @param m The RVec of mass components.
    */
   template<typename Tp, typename Tm>
-  inline void SumFourVector(PxPyPzMVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  inline void SumFourVector(LorentzVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     auto np = ip.size();
     for (size_t i = 0; i < np; ++i) {
-      p4 += PxPyPzMVector(px[ip[i]], py[ip[i]], pz[ip[i]], m[ip[i]]);
+      p4 += FourVector(ip[i], px, py, pz, m);
     }
   }
 
@@ -56,7 +63,7 @@ namespace rad {
    * @brief Subtracts the 4-vectors of multiple particles specified by indices from an existing 4-vector.
    * @tparam Tp Type of momentum components.
    * @tparam Tm Type of mass component.
-   * @param p4 Reference to the PxPyPzMVector from which the sum is subtracted.
+   * @param p4 Reference to the LorentzVector from which the sum is subtracted.
    * @param ip The Indices_t (RVecI) containing the indices of particles to subtract.
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
@@ -64,10 +71,10 @@ namespace rad {
    * @param m The RVec of mass components.
    */
   template<typename Tp, typename Tm>
-  inline void SubtractFourVector(PxPyPzMVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {// 
+  inline void SubtractFourVector(LorentzVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {// 
     auto np = ip.size();
     for (size_t i = 0; i <np ; ++i) {
-      p4 -= PxPyPzMVector(px[ip[i]], py[ip[i]], pz[ip[i]], m[ip[i]]);
+      p4 -= FourVector(ip[i], px, py, pz, m);
     }
   }
 
@@ -80,11 +87,11 @@ namespace rad {
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
    * @param m The RVec of mass components.
-   * @return PxPyPzMVector The summed four-momentum vector.
+   * @return LorentzVector The summed four-momentum vector.
    */
   template<typename Tp, typename Tm>
-  inline PxPyPzMVector FourVector(const Indices_t &ipart, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-    PxPyPzMVector psum(0,0,0,0);
+  inline LorentzVector FourVector(const Indices_t &ipart, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    LorentzVector psum(0,0,0,0);
     SumFourVector(psum, ipart, px, py, pz, m);
     return psum;
   }
@@ -109,7 +116,7 @@ namespace rad {
     const auto& ineg = indices[1];
  
     
-    PxPyPzMVector psum(0,0,0,0);
+    LorentzVector psum(0,0,0,0);
     SumFourVector(psum, ipos, px, py, pz, m);
     SubtractFourVector(psum, ineg, px, py, pz, m);
 
@@ -137,12 +144,13 @@ namespace rad {
     
     // Note: Assuming error checking for invalid indices is performed in the wrapper or upstream.
     
-    PxPyPzMVector psum(0,0,0,0);
+    LorentzVector psum(0,0,0,0);
     SumFourVector(psum, ipos, px, py, pz, m);
     SubtractFourVector(psum, ineg, px, py, pz, m);
 
     return psum.M2();
   }
+  
   /**
    * @brief Calculates the transverse momentum of combined 4-vectors, allowing for both addition and subtraction of components.
    * * This function is the core single-combination kernel for calculating mass in combinatorial analysis.
@@ -164,7 +172,7 @@ namespace rad {
     
     // Note: Assuming error checking for invalid indices is performed in the wrapper or upstream.
     
-    PxPyPzMVector psum(0,0,0,0);
+    LorentzVector psum(0,0,0,0);
     SumFourVector(psum, ipos, px, py, pz, m);
     SubtractFourVector(psum, ineg, px, py, pz, m);
 
@@ -178,7 +186,7 @@ namespace rad {
     
     // Note: Assuming error checking for invalid indices is performed in the wrapper or upstream.
     
-    PxPyPzMVector psum(0,0,0,0);
+    LorentzVector psum(0,0,0,0);
     SumFourVector(psum, ipos, px, py, pz, m);
     SubtractFourVector(psum, ineg, px, py, pz, m);
     

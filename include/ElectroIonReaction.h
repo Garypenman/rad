@@ -225,7 +225,7 @@ namespace rad {
          * @details Requires the reaction map to locate the "Virtual Gamma" in the created particles list.
          */
         template<typename Tp, typename Tm>
-        inline PxPyPzEVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m);
+        inline LorentzVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m);
     }
 
 
@@ -395,7 +395,7 @@ namespace rad {
 
   namespace electroion {
     // template<typename Tp, typename Tm>
-    //     inline PxPyPzEVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    //     inline LorentzVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
     //         // Retrieves the virtual photon from the 'Created' particle group
     // 	  return FourVector(react[consts::OrderCreated()][consts::OrderVirtGamma()], px, py, pz, m);
     // 	}
@@ -407,7 +407,7 @@ namespace rad {
     // The physical virtual photon is constructed here in E-space.
     
     template<typename Tp, typename Tm>
-    inline PxPyPzEVector PhotoFourVector(const RVecIndexMap& react,
+    inline LorentzVector PhotoFourVector(const RVecIndexMap& react,
 					 const Tp& px, const Tp& py,
 					 const Tp& pz, const Tm& m)
     {
@@ -415,12 +415,10 @@ namespace rad {
       auto is = react[consts::OrderScatEle()][0];
       auto ebeam = FourVector(ie, px, py, pz, m);
       auto escat = FourVector(is, px, py, pz, m);
-
-      ROOT::Math::PxPyPzEVector k (px[ie], py[ie], pz[ie], ebeam.E());
-      ROOT::Math::PxPyPzEVector kp(px[is], py[is], pz[is], escat.E());
-	
-      return k - kp;   // ✅ correct Lorentz subtraction
+      
+      return ebeam - escat;   // correct Lorentz subtraction
     }
+    
   }
   
 } // namespace rad
