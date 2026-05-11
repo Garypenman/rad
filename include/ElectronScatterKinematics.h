@@ -44,6 +44,29 @@ namespace rad {
       auto phot = PhotoFourVector(react, px, py, pz, m);
       return -phot.M2();
     }
+
+    template<typename Tp, typename Tm>
+    inline ResultType_t SpacelikeM2(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+      //auto q = FourVector(ipos, px, py, pz, m);
+      const auto& ipos = indices[0];
+      const auto& jpos = indices[1];
+      auto beam = FourVector(ipos, px, py, pz, m);
+      auto scat = FourVector(jpos, px, py, pz, m);
+      // cout << beam << endl;
+      // cout << scat << endl;
+      return -(beam-scat).M2();
+    }
+
+    template<typename Tp, typename Tm>
+    inline ResultType_t TimelikeM2(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+      const auto& ipos = indices[0];
+      const auto& jpos = indices[1];
+      auto beam = FourVector(ipos, px, py, pz, m);
+      auto scat = FourVector(jpos, px, py, pz, m);
+      // cout << beam << endl;
+      // cout << scat << endl;
+      return (beam-scat).M2();
+    }
     
     /**
      * @brief Calculates the struck quark momentum fraction, xbj = Q^2/(2p.q).
