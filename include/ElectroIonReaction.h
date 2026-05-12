@@ -415,8 +415,12 @@ namespace rad {
       auto is = react[consts::OrderScatEle()][0];
       auto ebeam = FourVector(ie, px, py, pz, m);
       auto escat = FourVector(is, px, py, pz, m);
+      auto p4 = ebeam - escat;
+      auto p4_stored = FourVector(react[consts::OrderCreated()][consts::OrderVirtGamma()], px, py, pz, m);
+      cout <<"PhotoFourVector_EVec:: " << p4.X()<<" "<<p4.Y()<<" "<<p4.Z()<<" "<<p4.T()<<" "<<p4.M()<<" "<<endl;
+      cout <<"PhotoFourVector_MVec: " << p4_stored.X()<<" "<<p4_stored.Y()<<" "<<p4_stored.Z()<<" "<<p4_stored.T()<<" "<<p4.M()<<" " <<endl;
+      return p4;   // correct Lorentz subtraction
       
-      return ebeam - escat;   // correct Lorentz subtraction
     }
     
   }

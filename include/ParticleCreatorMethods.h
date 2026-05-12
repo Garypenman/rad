@@ -20,6 +20,7 @@ namespace rad{
       py[position] = p4.Y();
       pz[position] = p4.Z();
       m[position]  = p4.M();
+      cout <<"PARTICLECREATEBYDIFF:"  << p4.X()<<" "<<p4.Y()<<" "<<p4.Z()<<" "<<p4.T()<<" "<<p4.M()<< " " << endl;
   }
 
   /**

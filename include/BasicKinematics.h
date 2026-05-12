@@ -35,7 +35,7 @@ namespace rad {
     // Recovers true M^2 preserving sign (handles spacelike and timelike)
     double M2 = m_stored * std::abs(m_stored);
     double E = std::sqrt(std::max(0.0, p2 + M2));
-
+    
     return LorentzVector(px[idx], py[idx], pz[idx], E);
   }
 
