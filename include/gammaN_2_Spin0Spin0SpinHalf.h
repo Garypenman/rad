@@ -32,18 +32,18 @@ namespace rad {
      * Assumes `PhotoFourVector(...)` is defined by the reaction configuration
      * (e.g. PhotoIonReaction.h or ElectroIonReaction.h).
      *
-     * @param react The fixed reaction index map.
-     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @param react The fixed reaction index eap.
+     * @param px, py, pz, e The consolidated eomentum component vectors.
      * @return LorentzVector The CM four-momentum vector.
      */
     inline LorentzVector PhotoCMVector(const RVecIndexMap& react,
                                        const RVecResultType& px, const RVecResultType& py,
-                                       const RVecResultType& pz, const RVecResultType& m)
+                                       const RVecResultType& pz, const RVecResultType& e)
     {
       // Assumes OrderBeams() [0] = ion, [1] = electron
       // Assuming ion is at pos 0 in the beam group
-      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
-      auto phot = PhotoFourVector(react, px, py, pz, m);
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e); 
+      auto phot = PhotoFourVector(react, px, py, pz, e);
       
       return ion + phot;
     }
@@ -51,18 +51,18 @@ namespace rad {
     /**
      * @brief Calculates decay angles in the overall CM frame of the initial state.
      *
-     * @param react The fixed reaction index map.
-     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @param react The fixed reaction index eap.
+     * @param px, py, pz, e The consolidated eomentum component vectors.
      * @return DecayAngles_t {cosTheta, phi} of the meson system in the CM frame.
      */
     inline DecayAngles_t PhotoCMDecay(const RVecIndexMap& react,
                                       const RVecResultType& px, const RVecResultType& py,
-                                      const RVecResultType& pz, const RVecResultType& m)
+                                      const RVecResultType& pz, const RVecResultType& e)
     {
-      const auto cm = PhotoCMVector(react, px, py, pz, m);
+      const auto cm = PhotoCMVector(react, px, py, pz, e);
       const auto cmBoost = cm.BoostToCM();
 
-      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, m); // Assumes single particle or combined meson vector
+      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, e); // Assumes single particle or combined meson vector
       const LorentzVector cmMes = boost(mes, cmBoost);
 
       DecayAngles_t result;
@@ -83,18 +83,18 @@ namespace rad {
      *   - y-axis along (baryon × photon).
      *   - x-axis completes the right-handed set: x = y × z.
      *
-     * @param react The fixed reaction index map.
-     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @param react The fixed reaction index eap.
+     * @param px, py, pz, e The consolidated eomentum component vectors.
      * @return DecayAngles_t {cosTheta, phi} for the first meson child (index 0).
      */
     inline DecayAngles_t PhotoHelicityDecay(const RVecIndexMap& react,
                                             const RVecResultType& px, const RVecResultType& py,
-                                            const RVecResultType& pz, const RVecResultType& m)
+                                            const RVecResultType& pz, const RVecResultType& e)
     {
-      const auto baryon = FourVector(react[consts::OrderBaryons()], px, py, pz, m);
-      //const auto meson = MesonFourVector(react, px, py, pz, m);
-      const auto meson = FourVector(react[consts::OrderMesons()], px, py, pz, m);
-      const auto photon = PhotoFourVector(react, px, py, pz, m);
+      const auto baryon = FourVector(react[consts::OrderBaryons()], px, py, pz, e);
+      //const auto meson = mesonFourVector(react, px, py, pz, e);
+      const auto meson = FourVector(react[consts::OrderMesons()], px, py, pz, e);
+      const auto photon = PhotoFourVector(react, px, py, pz, e);
       
       const auto decBoost = meson.BoostToCM();
 
@@ -108,7 +108,7 @@ namespace rad {
       const XYZVector xV = yV.Cross(zV).Unit();
 
       // First decay product of the meson
-      const auto child1    = FourVector(react[consts::OrderMesons()][0], px, py, pz, m);
+      const auto child1    = FourVector(react[consts::OrderMesons()][0], px, py, pz, e);
       const auto decChild1 = boost(child1, decBoost);
 
       // Projections and angles
@@ -128,9 +128,9 @@ namespace rad {
      */
     inline ResultType_t CosThetaHel(const RVecIndexMap& react,
                                     const RVecResultType& px, const RVecResultType& py,
-                                    const RVecResultType& pz, const RVecResultType& m)
+                                    const RVecResultType& pz, const RVecResultType& e)
     {
-      return PhotoHelicityDecay(react, px, py, pz, m).cosTheta;
+      return PhotoHelicityDecay(react, px, py, pz, e).cosTheta;
     }
     
     /**
@@ -138,9 +138,9 @@ namespace rad {
      */
     inline ResultType_t ThetaHel(const RVecIndexMap& react,
                                const RVecResultType& px, const RVecResultType& py,
-                               const RVecResultType& pz, const RVecResultType& m)
+                               const RVecResultType& pz, const RVecResultType& e)
     {
-      return PhotoHelicityDecay(react, px, py, pz, m).theta;
+      return PhotoHelicityDecay(react, px, py, pz, e).theta;
     }
 
     /**
@@ -148,9 +148,9 @@ namespace rad {
      */
     inline ResultType_t PhiHel(const RVecIndexMap& react,
                                const RVecResultType& px, const RVecResultType& py,
-                               const RVecResultType& pz, const RVecResultType& m)
+                               const RVecResultType& pz, const RVecResultType& e)
     {
-      return PhotoHelicityDecay(react, px, py, pz, m).phi;
+      return PhotoHelicityDecay(react, px, py, pz, e).phi;
     }
     
     // --- GottfriedJackson (GJ) Frame Decay Angles ---
@@ -164,22 +164,22 @@ namespace rad {
      *   - y-axis along (baryon × photon).
      *   - x-axis completes the right-handed set: x = y × z.
      *
-     * @param react The fixed reaction index map.
-     * @param px, py, pz, m The consolidated momentum component vectors.
+     * @param react The fixed reaction index eap.
+     * @param px, py, pz, e The consolidated eomentum component vectors.
      * @return DecayAngles_t {cosTheta, phi} for the first meson child (index 0).
      */
     inline DecayAngles_t PhotoGJDecay(const RVecIndexMap& react,
                                       const RVecResultType& px, const RVecResultType& py,
-                                      const RVecResultType& pz, const RVecResultType& m)
+                                      const RVecResultType& pz, const RVecResultType& e)
     {
-      const auto baryon = FourVector(react[consts::OrderBaryons()], px, py, pz, m);
-      const auto meson = FourVector(react[consts::OrderMesons()], px, py, pz, m);
+      const auto baryon = FourVector(react[consts::OrderBaryons()], px, py, pz, e);
+      const auto meson = FourVector(react[consts::OrderMesons()], px, py, pz, e);
       
       const auto decBoost = meson.BoostToCM();
 
       // Four-vectors in the meson rest frame
       const auto decBar   = boost(baryon, decBoost);
-      const auto decGamma = boost(PhotoFourVector(react, px, py, pz, m), decBoost);
+      const auto decGamma = boost(PhotoFourVector(react, px, py, pz, e), decBoost);
 
       // GJ axes
       const XYZVector zV = decGamma.Vect().Unit();
@@ -187,7 +187,7 @@ namespace rad {
       const XYZVector xV = yV.Cross(zV).Unit();
 
       // First decay product of the meson
-      const auto child1    = FourVector(react[consts::OrderMesons()][0], px, py, pz, m);
+      const auto child1    = FourVector(react[consts::OrderMesons()][0], px, py, pz, e);
       const auto decChild1 = boost(child1, decBoost);
 
       // Projections and angles
@@ -206,9 +206,9 @@ namespace rad {
      */
     inline ResultType_t CosThetaGJ(const RVecIndexMap& react,
                                    const RVecResultType& px, const RVecResultType& py,
-                                   const RVecResultType& pz, const RVecResultType& m)
+                                   const RVecResultType& pz, const RVecResultType& e)
     {
-      return PhotoGJDecay(react, px, py, pz, m).cosTheta;
+      return PhotoGJDecay(react, px, py, pz, e).cosTheta;
     }
 
     /**
@@ -216,9 +216,9 @@ namespace rad {
      */
     inline ResultType_t PhiGJ(const RVecIndexMap& react,
                               const RVecResultType& px, const RVecResultType& py,
-                              const RVecResultType& pz, const RVecResultType& m)
+                              const RVecResultType& pz, const RVecResultType& e)
     {
-      return PhotoGJDecay(react, px, py, pz, m).phi;
+      return PhotoGJDecay(react, px, py, pz, e).phi;
     }
 
   } // namespace gn2s0s0s12

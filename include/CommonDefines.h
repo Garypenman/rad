@@ -23,11 +23,11 @@ namespace rad{
   using RVecIndices = ROOT::RVec<Indices_t>; //indices : RVecIndices[set][particle]
   using RVecIndexMap = ROOT::RVec<Indices_t>;
 
-  enum class ComponentsOrder{X, Y, Z, M};
+  enum class ComponentsOrder{X, Y, Z, E};
   constexpr int OrderX() {return static_cast<int> (ComponentsOrder::X); }
   constexpr int OrderY() {return static_cast<int> (ComponentsOrder::Y); }
   constexpr int OrderZ() {return static_cast<int> (ComponentsOrder::Z); }
-  constexpr int OrderM() {return static_cast<int> (ComponentsOrder::M); }
+  constexpr int OrderE() {return static_cast<int> (ComponentsOrder::E); }
  
   using ParticleNames_t = ROOT::RVec<std::string>;
  

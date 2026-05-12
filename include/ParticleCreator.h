@@ -170,10 +170,10 @@ namespace rad {
        * @param px Reference to Px vector to write to.
        * @param py Reference to Py vector to write to.
        * @param pz Reference to Pz vector to write to.
-       * @param m Reference to Mass vector to write to.
+       * @param e Reference to Mass vector to write to.
        */
       void ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 
-                         ROOT::RVecD& pz, ROOT::RVecD& m) const;
+                         ROOT::RVecD& pz, ROOT::RVecD& e) const;
 
       // =======================================================================
       // Accessors
@@ -455,10 +455,10 @@ namespace rad {
     inline std::string ParticleCreator::GetMapName() const { return _prefix + consts::ReactionMap() + _suffix + DoNotWriteTag(); }
 
     inline void ParticleCreator::ApplyCreation(ROOT::RVecD& px, ROOT::RVecD& py, 
-                        ROOT::RVecD& pz, ROOT::RVecD& m) const 
+                        ROOT::RVecD& pz, ROOT::RVecD& e) const 
     {
        for (size_t i = 0; i < GetNCreated(); ++i) {
-         _p_creators[i](GetIndexSafe(_p_names[i]), _p_dep_indices[i], px, py, pz, m);
+         _p_creators[i](GetIndexSafe(_p_names[i]), _p_dep_indices[i], px, py, pz, e);
       }
     }
 } // end rad

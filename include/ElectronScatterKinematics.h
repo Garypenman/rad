@@ -15,7 +15,7 @@ namespace rad {
      */
     struct ScatterInProtonRestResult {
       double theta = 0;  ///< Scattering angle in the proton rest frame (radians).
-      double energy = 0; ///< Virtual photon energy in the proton rest frame (GeV).
+      double energy = 0; ///< Virtual photon energy (nu) in the proton rest frame (GeV).
       double Q2 = 0;     ///< Momentum transfer squared (Q^2 > 0).
     };
 
@@ -38,33 +38,39 @@ namespace rad {
      */
     inline ResultType_t ElS_Q2(const RVecIndexMap& react, 
 			       const RVecResultType& px, const RVecResultType& py, 
-			       const RVecResultType& pz, const RVecResultType& m) 
+			       const RVecResultType& pz, const RVecResultType& e) 
     {
-      // Q^2 is defined as the negative invariant mass squared of the virtual photon.
-      auto phot = PhotoFourVector(react, px, py, pz, m);
+      auto phot = PhotoFourVector(react, px, py, pz, e);
       return -phot.M2();
     }
 
-    template<typename Tp, typename Tm>
-    inline ResultType_t SpacelikeM2(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-      //auto q = FourVector(ipos, px, py, pz, m);
+    /**
+     * @brief Calculates the spacelike squared four-momentum transfer, M^2 = -m^2, between two particle groups.
+     * @param indices The indicies of particles groups being subtracted.
+     * @param px, py, pz, e The consolidated momentum component vectors.
+     * @return ResultType_t The -M^2 value (always positive).
+     */
+    template<typename Tp, typename Te>
+    inline ResultType_t SpacelikeM2(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
       const auto& ipos = indices[0];
       const auto& jpos = indices[1];
-      auto beam = FourVector(ipos, px, py, pz, m);
-      auto scat = FourVector(jpos, px, py, pz, m);
-      // cout << beam << endl;
-      // cout << scat << endl;
+      auto beam = FourVector(ipos, px, py, pz, e);
+      auto scat = FourVector(jpos, px, py, pz, e);
       return -(beam-scat).M2();
     }
 
-    template<typename Tp, typename Tm>
-    inline ResultType_t TimelikeM2(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+    /**
+     * @brief Calculates the timelike squared four-momentum transfer, M^2 = m^2, between two particle groups.
+     * @param indices The indicies of particles groups being subtracted.
+     * @param px, py, pz, e The consolidated momentum component vectors.
+     * @return ResultType_t The M^2 value (always positive).
+     */
+    template<typename Tp, typename Te>
+    inline ResultType_t TimelikeM2(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
       const auto& ipos = indices[0];
       const auto& jpos = indices[1];
-      auto beam = FourVector(ipos, px, py, pz, m);
-      auto scat = FourVector(jpos, px, py, pz, m);
-      // cout << beam << endl;
-      // cout << scat << endl;
+      auto beam = FourVector(ipos, px, py, pz, e);
+      auto scat = FourVector(jpos, px, py, pz, e);
       return (beam-scat).M2();
     }
     
@@ -76,10 +82,10 @@ namespace rad {
      */
     inline ResultType_t ElS_xbj(const RVecIndexMap& react, 
 			       const RVecResultType& px, const RVecResultType& py, 
-			       const RVecResultType& pz, const RVecResultType& m) 
+			       const RVecResultType& pz, const RVecResultType& e) 
     {
-      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
-      auto phot = PhotoFourVector(react, px, py, pz, m);
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e); 
+      auto phot = PhotoFourVector(react, px, py, pz, e);
       return -phot.M2() / (2*ion.Dot(phot));
     }
     
@@ -91,11 +97,11 @@ namespace rad {
      */
     inline ResultType_t ElS_y(const RVecIndexMap& react, 
 			       const RVecResultType& px, const RVecResultType& py, 
-			       const RVecResultType& pz, const RVecResultType& m) 
+			       const RVecResultType& pz, const RVecResultType& e) 
     {
-      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
-      auto ebeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, m);
-      auto phot = PhotoFourVector(react, px, py, pz, m);
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e); 
+      auto ebeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, e);
+      auto phot = PhotoFourVector(react, px, py, pz, e);
       return ion.Dot(phot) / ion.Dot(ebeam);
     }
     
@@ -107,10 +113,10 @@ namespace rad {
      */
     inline ResultType_t ElS_nu(const RVecIndexMap& react, 
 			       const RVecResultType& px, const RVecResultType& py, 
-			       const RVecResultType& pz, const RVecResultType& m) 
+			       const RVecResultType& pz, const RVecResultType& e) 
     {
-      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
-      auto phot = PhotoFourVector(react, px, py, pz, m);
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e); 
+      auto phot = PhotoFourVector(react, px, py, pz, e);
       return ion.Dot(phot) / ion.M();
     }
     
@@ -122,11 +128,10 @@ namespace rad {
      */
     inline ResultType_t ElS_tau(const RVecIndexMap& react, 
 			       const RVecResultType& px, const RVecResultType& py, 
-			       const RVecResultType& pz, const RVecResultType& m) 
+			       const RVecResultType& pz, const RVecResultType& e) 
     {
-      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
-      auto phot = PhotoFourVector(react, px, py, pz, m);
-      //auto Q2 = -phot.M2(); //call ElS_Q2() here or just compute by hand?
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e); 
+      auto phot = PhotoFourVector(react, px, py, pz, e);
       return -phot.M2() / (4*ion.M2());
     }
     
@@ -138,12 +143,11 @@ namespace rad {
      */
     inline ResultType_t ElS_tauprime(const RVecIndexMap& react, 
 			       const RVecResultType& px, const RVecResultType& py, 
-			       const RVecResultType& pz, const RVecResultType& m) 
+			       const RVecResultType& pz, const RVecResultType& e) 
     {
-      // Q^2 is defined as the negative invariant mass squared of the virtual photon.
-      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
-      auto phot = PhotoFourVector(react, px, py, pz, m);
-      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, m); // Assumes single particle or combined meson vector
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e); 
+      auto phot = PhotoFourVector(react, px, py, pz, e);
+      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, e); // Assumes single particle or combined meson vector
       return mes.M2() / (2*ion.Dot(phot));
     }
     
@@ -156,12 +160,12 @@ namespace rad {
      */
     inline LorentzVector CMVectorInitial(const RVecIndexMap& react, 
 					 const RVecResultType& px, const RVecResultType& py, 
-					 const RVecResultType& pz, const RVecResultType& m) 
+					 const RVecResultType& pz, const RVecResultType& e) 
     {
       // Assumes OrderBeams() [0] = ion, [1] = electron
       // Assuming ion is at pos 0 in the beam group
-      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m); 
-      auto phot = PhotoFourVector(react, px, py, pz, m);
+      auto ion = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e); 
+      auto phot = PhotoFourVector(react, px, py, pz, e);
 
       return ion + phot;
     }
@@ -176,12 +180,12 @@ namespace rad {
      */
     inline ScatterInProtonRestResult ScatterInProtonRest(const RVecIndexMap& react,
 							 const RVecResultType& px, const RVecResultType& py,
-							 const RVecResultType& pz, const RVecResultType& m) 
+							 const RVecResultType& pz, const RVecResultType& e) 
     {
       // Assumes necessary indices are defined in react
-      const auto pbeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m);
-      const auto ebeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, m);
-      const auto scatele = FourVector(react[consts::OrderScatEle()][0], px, py, pz, m);
+      const auto pbeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e);
+      const auto ebeam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, e);
+      const auto scatele = FourVector(react[consts::OrderScatEle()][0], px, py, pz, e);
 
       // Boost frame: Target ion CM
       const auto pboost = pbeam.BoostToCM();
@@ -217,10 +221,10 @@ namespace rad {
      */
     inline ResultType_t ElS_PolVirtPhot(const RVecIndexMap& react, 
 					const RVecResultType& px, const RVecResultType& py, 
-					const RVecResultType& pz, const RVecResultType& m) 
+					const RVecResultType& pz, const RVecResultType& e) 
     {
       // Calculate necessary variables in the proton rest frame
-      const auto prvec = ScatterInProtonRest(react, px, py, pz, m);
+      const auto prvec = ScatterInProtonRest(react, px, py, pz, e);
 
       // Renaming for clarity in calculation
       const auto ElScatTh = prvec.theta;
@@ -241,9 +245,9 @@ namespace rad {
      */
     inline ResultType_t ElS_CircPolVirtPhot(const RVecIndexMap& react, 
 					const RVecResultType& px, const RVecResultType& py, 
-					const RVecResultType& pz, const RVecResultType& m) 
+					const RVecResultType& pz, const RVecResultType& e) 
     {
-      auto eps = ElS_PolVirtPhot(react,px,py,pz,m);
+      auto eps = ElS_PolVirtPhot(react, px, py, pz, e);
       return sqrt(1-eps*eps);
     }
 
@@ -258,15 +262,15 @@ namespace rad {
      */
     inline DecayAngles_t ElectroCMDecay(const RVecIndexMap& react, 
 					const RVecResultType& px, const RVecResultType& py, 
-					const RVecResultType& pz, const RVecResultType& m) 
+					const RVecResultType& pz, const RVecResultType& e) 
     {
-      auto cm = CMVectorInitial(react, px, py, pz, m);
+      auto cm = CMVectorInitial(react, px, py, pz, e);
       auto cmBoost = cm.BoostToCM();
 
       // Get relevant particles
-      auto beam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, m);
-      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, m); // Assumes single particle or combined meson vector
-      auto photon = PhotoFourVector(react, px, py, pz, m);
+      auto beam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, e);
+      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, e); // Assumes single particle or combined meson vector
+      auto photon = PhotoFourVector(react, px, py, pz, e);
 
       // Boost to CM frame
       auto CMBeam = boost(beam, cmBoost);
@@ -296,9 +300,9 @@ namespace rad {
      */
     inline ResultType_t ElS_CosThetaCM(const RVecIndexMap& react, 
 				       const RVecResultType& px, const RVecResultType& py, 
-				       const RVecResultType& pz, const RVecResultType& m) 
+				       const RVecResultType& pz, const RVecResultType& e) 
     {
-      return ElectroCMDecay(react, px, py, pz, m).cosTheta;
+      return ElectroCMDecay(react, px, py, pz, e).cosTheta;
     }
 
     /**
@@ -308,9 +312,9 @@ namespace rad {
      */
     inline ResultType_t ElS_PhiCM(const RVecIndexMap& react, 
 				  const RVecResultType& px, const RVecResultType& py, 
-				  const RVecResultType& pz, const RVecResultType& m) 
+				  const RVecResultType& pz, const RVecResultType& e) 
     {
-      return ElectroCMDecay(react, px, py, pz, m).phi;
+      return ElectroCMDecay(react, px, py, pz, e).phi;
     }
 
     /**
@@ -322,16 +326,16 @@ namespace rad {
      */
     inline DecayAngles_t ElectroProtonRestDecay(const RVecIndexMap& react, 
 						const RVecResultType& px, const RVecResultType& py, 
-						const RVecResultType& pz, const RVecResultType& m) 
+						const RVecResultType& pz, const RVecResultType& e) 
     {
       // Boost frame: Initial proton rest frame
-      auto pr = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, m);
+      auto pr = FourVector(react[consts::OrderBeams()][consts::OrderBeamIon()], px, py, pz, e);
       auto prBoost = pr.BoostToCM();
 
       // Get relevant particles
-      auto beam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, m);
-      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, m);
-      auto photon = PhotoFourVector(react, px, py, pz, m);
+      auto beam = FourVector(react[consts::OrderBeams()][consts::OrderBeamEle()], px, py, pz, e);
+      auto mes = FourVector(react[consts::OrderMesons()], px, py, pz, e);
+      auto photon = PhotoFourVector(react, px, py, pz, e);
 
       // Boost to Proton Rest Frame
       auto prBeam = boost(beam, prBoost);
@@ -360,9 +364,9 @@ namespace rad {
      */
     inline ResultType_t ElS_CosThetaProtonRest(const RVecIndexMap& react, 
 					       const RVecResultType& px, const RVecResultType& py, 
-					       const RVecResultType& pz, const RVecResultType& m) 
+					       const RVecResultType& pz, const RVecResultType& e) 
     {
-      return ElectroProtonRestDecay(react, px, py, pz, m).cosTheta;
+      return ElectroProtonRestDecay(react, px, py, pz, e).cosTheta;
     }
     /**
      * @brief Calculates the decay angle (Theta) in the Proton Rest frame.
@@ -371,9 +375,9 @@ namespace rad {
      */
     inline ResultType_t ElS_ThetaProtonRest(const RVecIndexMap& react, 
 					       const RVecResultType& px, const RVecResultType& py, 
-					       const RVecResultType& pz, const RVecResultType& m) 
+					       const RVecResultType& pz, const RVecResultType& e) 
     {
-      return ElectroProtonRestDecay(react, px, py, pz, m).theta;
+      return ElectroProtonRestDecay(react, px, py, pz, e).theta;
     }
 
     /**
@@ -383,9 +387,9 @@ namespace rad {
      */
     inline ResultType_t ElS_PhiProtonRest(const RVecIndexMap& react, 
 					  const RVecResultType& px, const RVecResultType& py, 
-					  const RVecResultType& pz, const RVecResultType& m) 
+					  const RVecResultType& pz, const RVecResultType& e) 
     {
-      return ElectroProtonRestDecay(react, px, py, pz, m).phi;
+      return ElectroProtonRestDecay(react, px, py, pz, e).phi;
     }
 
   } // namespace physics

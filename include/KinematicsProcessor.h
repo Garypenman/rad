@@ -88,13 +88,13 @@ namespace rad {
      * @param aux_post_i Auxiliary Ints (Post-creation).
      * @return The nested structure containing kinematics for all combinations.
      */
-    template<typename Tp, typename Tm> 
+    template<typename Tp, typename Te> 
     CombiOutputVec_t operator()(const RVecIndices& indices, 
-                                const Tp& px, const Tp& py, const Tp& pz, const Tm& m,
+                                const Tp& px, const Tp& py, const Tp& pz, const Te& e,
                                 const RVecRVecD& aux_pre_d, const RVecRVecI& aux_pre_i,
                                 const RVecRVecD& aux_post_d, const RVecRVecI& aux_post_i) const;
 
-    /** * @brief Defines flattened columns for Px, Py, Pz, M for every particle. 
+    /** * @brief Defines flattened columns for Px, Py, Pz, E for every particle. 
      * @details 
      * Essential for `SnapshotCombi`. This creates scalar RVecs (one entry per combination)
      * effectively flattening the nested `CombiOutputVec_t` structure.
@@ -379,6 +379,9 @@ namespace rad {
     ROOT::RVecD temp_pz(Nparticles, consts::InvalidEntry<double>());
     ROOT::RVecD temp_m(Nparticles, consts::InvalidEntry<double>());
 
+    //this needs to be calculated from masses and then pushed to the calc functions
+    ROOT::RVecD temp_e(Nparticles, consts::InvalidEntry<double>());
+    
     AuxCacheD cache_pre_d(aux_pre_d.size(), ROOT::RVecD(Nparticles));
     AuxCacheI cache_pre_i(aux_pre_i.size(), ROOT::RVecI(Nparticles));
     AuxCacheD cache_post_d(aux_post_d.size(), ROOT::RVecD(Nparticles));
@@ -388,27 +391,33 @@ namespace rad {
       
       for (size_t ip = 0; ip < Nparticles0; ++ip) {
         size_t iparti = _creator.GetReactionIndex(ip);                
-        const int original_index = indices[ip][icombi];     
+        const int og_idx = indices[ip][icombi];     
 
-        temp_px[iparti] = px[original_index];
-        temp_py[iparti] = py[original_index];
-        temp_pz[iparti] = pz[original_index];
-        temp_m[iparti]  = m[original_index];
+        temp_px[iparti] = px[og_idx];
+        temp_py[iparti] = py[og_idx];
+        temp_pz[iparti] = pz[og_idx];
+	temp_m[iparti]  = m[og_idx];
 
-        for(size_t v=0; v<aux_pre_d.size(); ++v) cache_pre_d[v][iparti] = aux_pre_d[v][original_index];
-        for(size_t v=0; v<aux_pre_i.size(); ++v) cache_pre_i[v][iparti] = aux_pre_i[v][original_index];
+	// Important: Only for REAL input particles
+	// i.e. M2>0 and relatavistic condition:
+	// E2 = p2 + m2 HOLDS!
+	auto this_e = sqrt(px[og_idx]*px[og_idx] + py[og_idx]*py[og_idx] + pz[og_idx]*pz[og_idx] + m[og_idx]*m[og_idx]);
+	temp_e[iparti]  = this_e;
+		
+        for(size_t v=0; v<aux_pre_d.size(); ++v) cache_pre_d[v][iparti] = aux_pre_d[v][og_idx];
+        for(size_t v=0; v<aux_pre_i.size(); ++v) cache_pre_i[v][iparti] = aux_pre_i[v][og_idx];
       }
 
-      _preModifier.Apply(temp_px, temp_py, temp_pz, temp_m, cache_pre_d, cache_pre_i);
+      _preModifier.Apply(temp_px, temp_py, temp_pz, temp_e, cache_pre_d, cache_pre_i);
       
-      _creator.ApplyCreation(temp_px, temp_py, temp_pz, temp_m);
+      _creator.ApplyCreation(temp_px, temp_py, temp_pz, temp_e);
       
-      _postModifier.Apply(temp_px, temp_py, temp_pz, temp_m, cache_post_d, cache_post_i);
+      _postModifier.Apply(temp_px, temp_py, temp_pz, temp_e, cache_post_d, cache_post_i);
  
       result[icombi][OrderX()] = temp_px;
       result[icombi][OrderY()] = temp_py;
       result[icombi][OrderZ()] = temp_pz;
-      result[icombi][OrderM()] = temp_m;
+      result[icombi][OrderE()] = temp_e;
     }
     // auto particle_names = _creator.GetParticleNames();
     // for(const auto& pname:particle_names){
@@ -425,7 +434,7 @@ namespace rad {
        auto particle_names = _creator.GetParticleNames();
        
        const ROOT::RVec<std::pair<std::string, int>> components = {
-         {"_px", 0}, {"_py", 1}, {"_pz", 2}, {"_m", 3}
+         {"_px", 0}, {"_py", 1}, {"_pz", 2}, {"_e", 3}
        };
        
        std::string resultColName = _prefix + consts::KineComponents() + _suffix;
@@ -586,9 +595,9 @@ namespace rad {
           auto func_ptr = _indexFunc; 
           auto adapter = [resolved_indices, func_ptr](const RVecIndexMap&, 
                                                       const RVecResultType& px, const RVecResultType& py, 
-                                                      const RVecResultType& pz, const RVecResultType& m) 
+                                                      const RVecResultType& pz, const RVecResultType& e) 
           {
-              return func_ptr(resolved_indices, px, py, pz, m);
+              return func_ptr(resolved_indices, px, py, pz, e);
           };
 
           processor->DefineKernel(_name, adapter);

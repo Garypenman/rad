@@ -9,18 +9,17 @@ namespace rad{
    * @param position The index in the arrays where the new particle will be stored.
    * @param indices [0] = Indices to Add, [1] = Indices to Subtract.
    */
-  inline void ParticleCreateByDiff(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &m) {
+  inline void ParticleCreateByDiff(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &e) {
       const auto& ipos = indices[0];
       const auto& ineg = indices[1];
       
-      auto p4 = FourVector(ipos,px,py,pz,m);
-      SubtractFourVector(p4,ineg,px,py,pz,m);
+      auto p4 = FourVector(ipos,px,py,pz,e);
+      SubtractFourVector(p4,ineg,px,py,pz,e);
 
       px[position] = p4.X();
       py[position] = p4.Y();
       pz[position] = p4.Z();
-      m[position]  = p4.M();
-      cout <<"PARTICLECREATEBYDIFF:"  << p4.X()<<" "<<p4.Y()<<" "<<p4.Z()<<" "<<p4.T()<<" "<<p4.M()<< " " << endl;
+      e[position]  = p4.E();
   }
 
   /**
@@ -28,13 +27,13 @@ namespace rad{
    * @param position The index in the arrays where the new particle will be stored.
    * @param indices [0] = Indices to Add.
    */
-  inline void ParticleCreateBySum(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &m) {
+  inline void ParticleCreateBySum(const Indice_t position,const RVecIndices &indices, ROOT::RVecD &px, ROOT::RVecD &py, ROOT::RVecD &pz, ROOT::RVecD &e) {
       const auto& ipos = indices[0];
-      auto p4 = FourVector(ipos,px,py,pz,m);
+      auto p4 = FourVector(ipos,px,py,pz,e);
 
       px[position] = p4.X();
       py[position] = p4.Y();
       pz[position] = p4.Z();
-      m[position]  = p4.M();
+      e[position]  = p4.E();
   }
 }

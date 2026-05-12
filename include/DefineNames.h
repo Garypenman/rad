@@ -100,6 +100,7 @@ namespace rad{
     const std::string  NamePy() {return "py";}
     const std::string  NamePz() {return "pz";}
     const std::string  NameM() {return "m";}
+    const std::string  NameE() {return "e";}
     const std::string  NamePid() {return "pid";}
   
     // Standardized matching columns

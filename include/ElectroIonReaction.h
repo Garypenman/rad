@@ -224,8 +224,8 @@ namespace rad {
          * @brief Helper to generate a Virtual Photon 4-vector (q = k - k').
          * @details Requires the reaction map to locate the "Virtual Gamma" in the created particles list.
          */
-        template<typename Tp, typename Tm>
-        inline LorentzVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m);
+        template<typename Tp, typename Te>
+        inline LorentzVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Te &e);
     }
 
 
@@ -394,33 +394,12 @@ namespace rad {
     // --- Physics Helpers ---
 
   namespace electroion {
-    // template<typename Tp, typename Tm>
-    //     inline LorentzVector PhotoFourVector(const RVecIndexMap& react, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-    //         // Retrieves the virtual photon from the 'Created' particle group
-    // 	  return FourVector(react[consts::OrderCreated()][consts::OrderVirtGamma()], px, py, pz, m);
-    // 	}
-
-    // NOTE:
-    // VirtGamma is an off-shell object.
-    // The (px,py,pz,m) entry created by ParticleCreateByDiff
-    // is bookkeeping-only and MUST NOT be used for physics.
-    // The physical virtual photon is constructed here in E-space.
-    
-    template<typename Tp, typename Tm>
+    template<typename Tp, typename Te>
     inline LorentzVector PhotoFourVector(const RVecIndexMap& react,
 					 const Tp& px, const Tp& py,
-					 const Tp& pz, const Tm& m)
+					 const Tp& pz, const Te& e)
     {
-      auto ie = react[consts::OrderBeams()][consts::OrderBeamEle()];
-      auto is = react[consts::OrderScatEle()][0];
-      auto ebeam = FourVector(ie, px, py, pz, m);
-      auto escat = FourVector(is, px, py, pz, m);
-      auto p4 = ebeam - escat;
-      auto p4_stored = FourVector(react[consts::OrderCreated()][consts::OrderVirtGamma()], px, py, pz, m);
-      cout <<"PhotoFourVector_EVec:: " << p4.X()<<" "<<p4.Y()<<" "<<p4.Z()<<" "<<p4.T()<<" "<<p4.M()<<" "<<endl;
-      cout <<"PhotoFourVector_MVec: " << p4_stored.X()<<" "<<p4_stored.Y()<<" "<<p4_stored.Z()<<" "<<p4_stored.T()<<" "<<p4.M()<<" " <<endl;
-      return p4;   // correct Lorentz subtraction
-      
+      return FourVector(react[consts::OrderCreated()][consts::OrderVirtGamma()], px, py, pz, e);
     }
     
   }

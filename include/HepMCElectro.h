@@ -55,12 +55,11 @@ namespace rad{
       injector.DefineParticleInfo({"px", "py", "pz", "m", "pid"});
       
       // Map the specific HepMC branches to these suffixes
-      injector.AddSource(MC(), 
-			 {"particles.momentum.m_v1","particles.momentum.m_v2","particles.momentum.m_v3","particles.mass","particles.pid"}); 
-      
+      injector.AddSource(MC(),{"particles.momentum.m_v1","particles.momentum.m_v2","particles.momentum.m_v3","particles.mass","particles.pid"}); 
+
       // Execute the aliasing/creation logic
       injector.CreateUnifiedVectors();
- 
+      
       // Define standard kinematic variables for all types
       // DefineForAllTypes("phi", Form("rad::ThreeVectorPhi(components_p3)"));
       // DefineForAllTypes("theta", Form("rad::ThreeVectorTheta(components_p3)"));

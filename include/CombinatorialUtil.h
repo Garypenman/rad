@@ -144,13 +144,13 @@ namespace rad {
           
           // We pass the slices directly to the kernel.
           // components[i_combo] is RVec<RVecResultType> of size 4.
-          // Index 0=Px, 1=Py, 2=Pz, 3=M (See CommonDefines.h: OrderX...)
+          // Index 0=Px, 1=Py, 2=Pz, 3=E (See CommonDefines.h: OrderX...)
           
           results[i_combo] = singleComboKernel(indices, 
                          components[i_combo][OrderX()],
                          components[i_combo][OrderY()],
                          components[i_combo][OrderZ()],
-                         components[i_combo][OrderM()]);
+                         components[i_combo][OrderE()]);
       }
 
       return results;

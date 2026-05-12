@@ -20,79 +20,73 @@ namespace rad {
   /**
    * @brief Returns the 4-vector of a particle specified by a single index.
    * @tparam Tp Type of momentum components (e.g., RVec<float>).
-   * @tparam Tm Type of mass component (e.g., RVec<float>).
+   * @tparam Te Type of energy component (e.g., RVec<float>).
    * @param idx The index of the particle in the component vectors.
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
-   * @param m The RVec of mass components.
+   * @param e The RVec of energy components.
    * @return LorentzVector The four-momentum vector (Px, Py, Pz, E).
    */
-  template<typename Tp, typename Tm>
-  inline LorentzVector FourVector(const uint idx, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-    double p2 = px[idx]*px[idx] + py[idx]*py[idx] + pz[idx]*pz[idx];
-    double m_stored = m[idx];
-    // Recovers true M^2 preserving sign (handles spacelike and timelike)
-    double M2 = m_stored * std::abs(m_stored);
-    double E = std::sqrt(std::max(0.0, p2 + M2));
-    
-    return LorentzVector(px[idx], py[idx], pz[idx], E);
+  template<typename Tp, typename Te>
+  inline LorentzVector FourVector(const uint idx, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
+    return LorentzVector(px[idx], py[idx], pz[idx], e[idx]);
   }
 
   
   /**
    * @brief Adds the 4-vectors of multiple particles specified by indices to an existing 4-vector.
    * @tparam Tp Type of momentum components.
-   * @tparam Tm Type of mass component.
+   * @tparam Te Type of energy component.
    * @param p4 Reference to the LorentzVector to which the sum is added.
    * @param ip The Indices_t (RVecI) containing the indices of particles to sum.
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
-   * @param m The RVec of mass components.
+   * @param e The RVec of energy components.
    */
-  template<typename Tp, typename Tm>
-  inline void SumFourVector(LorentzVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline void SumFourVector(LorentzVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     auto np = ip.size();
     for (size_t i = 0; i < np; ++i) {
-      p4 += FourVector(ip[i], px, py, pz, m);
+      p4 += FourVector(ip[i], px, py, pz, e);
     }
   }
 
   /**
    * @brief Subtracts the 4-vectors of multiple particles specified by indices from an existing 4-vector.
    * @tparam Tp Type of momentum components.
-   * @tparam Tm Type of mass component.
+   * @tparam Te Type of energy component.
    * @param p4 Reference to the LorentzVector from which the sum is subtracted.
    * @param ip The Indices_t (RVecI) containing the indices of particles to subtract.
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
-   * @param m The RVec of mass components.
+   * @param e The RVec of energy components.
    */
-  template<typename Tp, typename Tm>
-  inline void SubtractFourVector(LorentzVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {// 
+  template<typename Tp, typename Te>
+  inline void SubtractFourVector(LorentzVector& p4, const Indices_t &ip, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {// 
     auto np = ip.size();
     for (size_t i = 0; i <np ; ++i) {
-      p4 -= FourVector(ip[i], px, py, pz, m);
+      p4 -= FourVector(ip[i], px, py, pz, e);
     }
   }
 
   /**
    * @brief Returns the 4-vector resulting from the sum of particles specified by indices.
    * @tparam Tp Type of momentum components.
-   * @tparam Tm Type of mass component.
+   * @tparam Te Type of energy component.
    * @param ipart The Indices_t (RVecI) containing the indices of particles to sum.
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
-   * @param m The RVec of mass components.
+   * @param e The RVec of energy components.
    * @return LorentzVector The summed four-momentum vector.
    */
-  template<typename Tp, typename Tm>
-  inline LorentzVector FourVector(const Indices_t &ipart, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline LorentzVector FourVector(const Indices_t &ipart, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     LorentzVector psum(0,0,0,0);
-    SumFourVector(psum, ipart, px, py, pz, m);
+    SumFourVector(psum, ipart, px, py, pz, e);
     return psum;
   }
 
@@ -100,25 +94,25 @@ namespace rad {
    * @brief Calculates the invariant mass of combined 4-vectors, allowing for both addition and subtraction of components.
    * * This function is the core single-combination kernel for calculating mass in combinatorial analysis.
    * * @tparam Tp Type of momentum components (e.g., RVec<double>).
-   * @tparam Tm Type of mass component.
+   * @tparam Te Type of energy component.
    * @param indices The RVecIndices container holding all index sets. It is expected to contain at least two sets: 
    * indices[0] = Indices_t (RVecI) for particles to be ADDED (ipos).
    * indices[1] = Indices_t (RVecI) for particles to be SUBTRACTED (ineg).
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
-   * @param m The RVec of mass components.
+   * @param e The RVec of energy components.
    * @return ResultType_t The resulting mass. Returns M() of the resultant 4-vector.
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t FourVectorMassCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t FourVectorMassCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const auto& ipos = indices[0];
     const auto& ineg = indices[1];
  
     
     LorentzVector psum(0,0,0,0);
-    SumFourVector(psum, ipos, px, py, pz, m);
-    SubtractFourVector(psum, ineg, px, py, pz, m);
+    SumFourVector(psum, ipos, px, py, pz, e);
+    SubtractFourVector(psum, ineg, px, py, pz, e);
 
     return psum.M();
   }
@@ -127,26 +121,26 @@ namespace rad {
    * @brief Calculates the invariant mass squared of combined 4-vectors, allowing for both addition and subtraction of components.
    * * This function is the core single-combination kernel for calculating mass in combinatorial analysis.
    * * @tparam Tp Type of momentum components (e.g., RVec<double>).
-   * @tparam Tm Type of mass component.
+   * @tparam Te Type of energy component.
    * @param indices The RVecIndices container holding all index sets. It is expected to contain at least two sets: 
    * indices[0] = Indices_t (RVecI) for particles to be ADDED (ipos).
    * indices[1] = Indices_t (RVecI) for particles to be SUBTRACTED (ineg).
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
-   * @param m The RVec of mass components.
+   * @param e The RVec of energy components.
    * @return ResultType_t The resulting mass. Returns M() of the resultant 4-vector.
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t FourVectorMass2Calc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t FourVectorMass2Calc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const auto& ipos = indices[0];
     const auto& ineg = indices[1];
     
     // Note: Assuming error checking for invalid indices is performed in the wrapper or upstream.
     
     LorentzVector psum(0,0,0,0);
-    SumFourVector(psum, ipos, px, py, pz, m);
-    SubtractFourVector(psum, ineg, px, py, pz, m);
+    SumFourVector(psum, ipos, px, py, pz, e);
+    SubtractFourVector(psum, ineg, px, py, pz, e);
 
     return psum.M2();
   }
@@ -155,40 +149,40 @@ namespace rad {
    * @brief Calculates the transverse momentum of combined 4-vectors, allowing for both addition and subtraction of components.
    * * This function is the core single-combination kernel for calculating mass in combinatorial analysis.
    * * @tparam Tp Type of momentum components (e.g., RVec<double>).
-   * @tparam Tm Type of mass component.
+   * @tparam Te Type of energy component.
    * @param indices The RVecIndices container holding all index sets. It is expected to contain at least two sets: 
    * indices[0] = Indices_t (RVecI) for particles to be ADDED (ipos).
    * indices[1] = Indices_t (RVecI) for particles to be SUBTRACTED (ineg).
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
-   * @param m The RVec of mass components.
+   * @param e The RVec of energy components.
    * @return ResultType_t The resulting mass. Returns M() of the resultant 4-vector.
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t FourVectorPtCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t FourVectorPtCalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const auto& ipos = indices[0];
     const auto& ineg = indices[1];
     
     // Note: Assuming error checking for invalid indices is performed in the wrapper or upstream.
     
     LorentzVector psum(0,0,0,0);
-    SumFourVector(psum, ipos, px, py, pz, m);
-    SubtractFourVector(psum, ineg, px, py, pz, m);
+    SumFourVector(psum, ipos, px, py, pz, e);
+    SubtractFourVector(psum, ineg, px, py, pz, e);
 
     return psum.Pt();
   }
 
-  template<typename Tp, typename Tm>
-  inline ResultType_t FourVectorECalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t FourVectorECalc(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const auto& ipos = indices[0];
     const auto& ineg = indices[1];
     
     // Note: Assuming error checking for invalid indices is performed in the wrapper or upstream.
     
     LorentzVector psum(0,0,0,0);
-    SumFourVector(psum, ipos, px, py, pz, m);
-    SubtractFourVector(psum, ineg, px, py, pz, m);
+    SumFourVector(psum, ipos, px, py, pz, e);
+    SubtractFourVector(psum, ineg, px, py, pz, e);
     
     return psum.E();
     }
@@ -211,8 +205,8 @@ namespace rad {
   /**
    * @brief prototype for a given indice, used by ApplyKinematics
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t ThreeVectorMag(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t ThreeVectorMag(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const Indice_t idx = indices[0][0];
     return ThreeVectorMag(px[idx],py[idx],pz[idx]);
   }
@@ -234,8 +228,8 @@ namespace rad {
   /**
    * @brief prototype for a given indice, used by ApplyKinematics
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t ThreeVectorTheta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t ThreeVectorTheta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const Indice_t idx = indices[0][0];
     return ThreeVectorTheta(px[idx],py[idx],pz[idx]);
   }
@@ -256,8 +250,8 @@ namespace rad {
   /**
    * @brief prototype for a given indice, used by ApplyKinematics
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t ThreeVectorPhi(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t ThreeVectorPhi(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const Indice_t idx = indices[0][0];
     return ThreeVectorPhi(px[idx],py[idx],pz[idx]);
   }
@@ -278,8 +272,8 @@ namespace rad {
   /**
    * @brief prototype for a given indice, used by ApplyKinematics
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t ThreeVectorEta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t ThreeVectorEta(const RVecIndices &indices,const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const Indice_t idx = indices[0][0];
     return ThreeVectorEta(px[idx],py[idx],pz[idx]);
   }
@@ -327,8 +321,8 @@ namespace rad {
    * @param pz The RVec of z-components.
    * @return double The DeltaPhi value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t DeltaPhi(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t DeltaPhi(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     // Needs single set of indices (indices[0]), containing exactly two particles
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
@@ -352,8 +346,8 @@ namespace rad {
    * @param pz The RVec of z-components.
    * @return double The DeltaTheta value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t DeltaTheta(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t DeltaTheta(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
@@ -376,8 +370,8 @@ namespace rad {
    * @param pz The RVec of z-components.
    * @return double The DeltaP value. Returns InvalidEntry if indices are invalid or momentum is zero.
    */
-  template<typename Tp, typename Tm>
-  inline ResultType_t DeltaP(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
+  template<typename Tp, typename Te>
+  inline ResultType_t DeltaP(const RVecIndices &indices, const Tp &px, const Tp &py, const Tp &pz, const Te &e) {
     const auto& i0 = indices[0][0];
     const auto& i1 = indices[0][1];
     
@@ -395,24 +389,29 @@ namespace rad {
    * @brief Prints the 4-momentum and basic kinematic variables (p, theta) for all particles in an event.
    * @tparam Tpid Type of PID component (e.g., RVec<int>).
    * @tparam Tp Type of momentum components.
-   * @tparam Tm Type of mass component.
+   * @tparam Te Type of energy component.
    * @param type String identifier for the data type (e.g., "tru" or "rec").
    * @param entry The event entry number (ULong64_t).
    * @param pid The RVec of PID values.
    * @param px The RVec of x-momentum components.
    * @param py The RVec of y-momentum components.
    * @param pz The RVec of z-momentum components.
-   * @param m The RVec of mass components.
+   * @param e The RVec of energy components.
    * @return true Always returns true (useful for using this as an RDataFrame Filter/Define action).
    */
   template<typename Tpid, typename Tp, typename Tm>
   inline bool PrintParticles(const std::string& type, ULong64_t entry, const Tpid &pid, const Tp &px, const Tp &py, const Tp &pz, const Tm &m) {
-    
+
+    std::cout << setprecision(10);
     std::cout << type << " PrintParticles Event = " << entry << " number " <<px.size()<<std::endl;
     for (size_t idx = 0; idx < px.size(); ++idx) {
-      std::cout << " " << pid[idx] << "\t" << PxPyPzMVector(px[idx], py[idx], pz[idx], m[idx]) 
+      auto p4 = PxPyPzMVector(px[idx], py[idx], pz[idx], m[idx]);
+      std::cout << " " << pid[idx] << "\t" <<  p4
 		<< " pmag " << ThreeVectorMag(px, py, pz)[idx] 
-		<< " theta " << ThreeVectorTheta(px, py, pz)[idx] << "\n";
+		<< " theta " << ThreeVectorTheta(px, py, pz)[idx]
+		<< " mass " << p4.M()
+		<< " Energy " << p4.E() << "\n";
+      
     }
     return true;
   }
