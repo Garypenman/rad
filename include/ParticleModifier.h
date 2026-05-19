@@ -45,7 +45,8 @@ namespace rad {
         /**
          * @brief Forces the mass of a particle to a fixed value (modifies energy).
          */
-        void FixMass(const std::string& name, double mass);
+      void FixMassWithE(const std::string& name, double mass);
+      void FixMassWithP(const std::string& name, double mass);
 
         /**
          * @brief Sets the particle's momentum magnitude from an auxiliary column.
@@ -130,10 +131,15 @@ namespace rad {
 	AddModifier(name,mod);
     }
 
-    inline void ParticleModifier::FixMass(const std::string& name, double mass) {
-        auto mod = std::make_shared<ModFixMass>(mass);
+    inline void ParticleModifier::FixMassWithE(const std::string& name, double mass) {
+        auto mod = std::make_shared<ModFixMassWithE>(mass);
 	AddModifier(name,mod);
     }
+
+  inline void ParticleModifier::FixMassWithP(const std::string& name, double mass) {
+    auto mod = std::make_shared<ModFixMassWithP>(mass);
+    AddModifier(name,mod);
+  }
 
     inline void ParticleModifier::SetMomentumFrom(const std::string& name, const std::string& colName) {
         Indice_t row = RegisterAuxDouble(colName);
